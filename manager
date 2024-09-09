@@ -5,7 +5,7 @@ from collections import Counter
 from colors import color
 from InquirerPy import inquirer
 
-from sheet_manager import get_modlist_info
+from sheet_manager import get_modlist_info, get_instances
 from helpers import *
 import mod_parser, statter
 
@@ -31,8 +31,13 @@ def modlist():
                 instance_name = instance_cache.readlines()[0]
             print(f"Using cached instance {instance_name}")
     if not instance_name:
-        with open(f"cached_instance_name","w") as instance_cache:
-            instance_name = click.prompt("What instance should be used?")
+        with open(f"cached_instance_name","w") as instance_cache:            
+            instance_name = inquirer.select(
+                message="Choose instance",
+                choices=get_instances(),
+                pointer=">",
+            ).execute()
+
             instance_cache.write(instance_name)
 
     if click.confirm("Get modlist from sheet?"):
@@ -125,10 +130,7 @@ def loadModInfo():
 
     return modInfo
 
-@cli.command
-def update():
-    updateMods()
-
+@cli.command("update")
 def updateMods():
     modInfo = loadModInfo()
     
@@ -191,9 +193,7 @@ def getModStats():
         print(out)
     return
 
-@cli.command
-def encode():
-    ddsEncode()
+@cli.command("encode")
 def ddsEncode():
     os.system("./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p source_mods")
 
