@@ -4,6 +4,7 @@ include/
 
 lib/
 lib64
+pyvenv.cfg
 
 /active/*
 !/active/README
