@@ -1,0 +1,206 @@
+#!/home/dormierian/Games/rimworld/instance_manager/bin/python
+
+import csv, os, click, time, requests, json, humanize # type: ignore
+from collections import Counter
+from colors import color
+from InquirerPy import inquirer
+
+from sheet_manager import get_modlist_info
+from helpers import *
+import mod_parser, statter
+
+os.chdir(os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__))))
+
+@click.group
+def cli():
+    pass
+
+def downloadMods(mods):
+    # Pass list of ids
+    os.system(f"/home/dormierian/Games/rimworld/SteamCMD/steamcmd.sh +logon anonymous +workshop_download_item 294100 {" +workshop_download_item 294100 ".join(mods)} +exit")
+    setDownloadTime(mods)
+    if click.confirm("\nDDS-encode downloaded mods?"):
+        ddsEncode()
+
+@cli.command
+def modlist():
+    instance_name = ""
+    if os.path.exists(f"cached_instance_name"):
+        if click.confirm("Use cached instance?"):
+            with open(f"cached_instance_name","r") as instance_cache:
+                instance_name = instance_cache.readlines()[0]
+            print(f"Using cached instance {instance_name}")
+    if not instance_name:
+        with open(f"cached_instance_name","w") as instance_cache:
+            instance_name = click.prompt("What instance should be used?")
+            instance_cache.write(instance_name)
+
+    if click.confirm("Get modlist from sheet?"):
+        with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
+            instance_csv.write(get_modlist_info(instance_name))
+
+    generateModList(instance_name)
+
+def generateModList(instance):
+    mods = []
+
+    with open(f"instances/{instance}/modlist.csv","r") as instance_csv:
+        reader = csv.reader(instance_csv)
+        for row in reader:
+            mods=row
+
+    print("Clearing active mod folder")
+    removeFolder("active/mods")
+    source_mods  = [ f.path.split("/",1)[1] for f in os.scandir("source_mods") if f.is_dir() ]
+    # print(source_mods)
+
+    missing_mod_list = []
+
+    for mod in mods:
+        if mod in source_mods:
+            continue
+        else:
+            print(f"Missing Mod: {mod}")
+            missing_mod_list.append(mod)
+    
+    if missing_mod_list:
+        if click.confirm("Missing mods detected. Try to download?"):
+            downloadMods(missing_mod_list)
+        generateModList(instance)
+    else:
+        for mod in mods:
+            try:
+                if mod in source_mods:
+                    os.symlink(os.path.abspath(f"source_mods/{mod}"),f"active/mods/{mod}")
+                else:
+                    print(f"Missing Mod. Download failed?: {mod}")
+            except FileExistsError:
+                print(f"Duplicate Mod: {mod}")
+        if click.confirm("Run RimPy?"):
+            os.chdir("../rimpy/")
+            os.system("./rimpy")
+
+def setDownloadTime(mods, write_time=None):
+    if not write_time:
+        write_time = str(time.time() * 1000)
+
+    for mod in mods:
+        if not os.path.exists(f"source_mods/{mod}/timeDownloaded"):
+            open(f"source_mods/{mod}/timeDownloaded","x")
+        with open(f"source_mods/{mod}/timeDownloaded",'w') as dateFile:
+            dateFile.write(write_time)
+
+def loadModInfo():
+    if click.confirm("Get new mod info?"):
+        print("Getting info")
+
+        # Read from the steam API and write to file
+        source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
+
+        source_mods = [f for f in source_mods if f.isnumeric()]
+
+        url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+        
+        # # Construct the publishedfileids parameter
+        # publishedfileids = "&".join(f"publishedfileids%5B{i}%5D={mod_id}" for i, mod_id in enumerate(source_mods))
+        
+        # # Construct the final URL
+        # url = f"https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/?itemcount={len(source_mods)}&{publishedfileids}"
+
+        payload = {"itemcount": len(source_mods)}
+        for i in range(len(source_mods)):
+            payload[f"publishedfileids[{i}]"] = source_mods[i]
+
+        response = requests.post(url, data=payload)
+        
+        responseFile = open("response.json","w")
+        json.dump(response.json(), responseFile)
+        responseFile.close()
+
+        print("Mod info gotten")
+    
+    modInfo = {}
+    with open("response.json", "r") as f:
+        modInfo = json.load(f)
+
+    return modInfo
+
+@cli.command
+def update():
+    updateMods()
+
+def updateMods():
+    modInfo = loadModInfo()
+    
+    modUpdateTimes = { mod["publishedfileid"]:(mod["time_updated"] if "time_updated" in mod else 0) for mod in modInfo["response"]["publishedfiledetails"]}
+
+    source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
+    source_mods = [f for f in source_mods if f.isnumeric()]
+
+    toUpdate = []
+
+    for mod in source_mods:
+        with open(f"source_mods/{mod}/timeDownloaded","r") as tFile:
+            timeDownloaded = float(tFile.readlines()[0])
+            timeUpdated = float(modUpdateTimes[mod])*1000 # Steam returns seconds, timeDownloaded is in ms
+            # print(f"Mod {mod} downloaded {timeDownloaded} updated {timeUpdated}")
+            if timeDownloaded < timeUpdated:
+                toUpdate.append(mod)
+
+    if toUpdate:
+        print(f"The following {len(toUpdate)} mods are out of date.")
+        print("\n".join(mod_parser.get_mods_names(toUpdate)))
+
+        if click.confirm("Download them now?"):
+            downloadMods(toUpdate)
+    else:
+        print("No mods detected out of date.")
+
+@cli.command
+def getModStats():
+    # DATA!
+    modInfo = loadModInfo()
+
+    options = ["authors","subscribers","size","time"]
+
+    choice = inquirer.select(
+        message="Get mods by",
+        choices=options,
+        pointer="-",
+    ).execute()
+
+    if choice == "authors":
+        statter.get_common_mod_authors(modInfo)
+    elif choice == "subscribers":
+        data = statter.getModsBy(modInfo,"lifetime_subscriptions",)
+        out = ""
+        for mod in data:
+            out+=f"{mod} has {data[mod]} subscribers \n"
+        print(out)
+    elif choice == "size":
+        data = statter.getModsBy(modInfo,"file_size")
+        out = ""
+        for mod in data:
+            out+=f"{mod} is {humanize.naturalsize(data[mod], binary=True)} \n"
+        print(out)
+    elif choice == time:
+        data = statter.getModsBy(modInfo,"time_created")
+        out = ""
+        for mod in data:
+            out+=f"{mod} was made at {data[mod]} unix time\n"
+        print(out)
+    return
+
+@cli.command
+def encode():
+    ddsEncode()
+def ddsEncode():
+    os.system("./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p source_mods")
+
+@cli.command
+def whenlastupdated():
+    time = click.prompt("Time to set (unix milis)")
+    setDownloadTime([f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()],time)
+
+if __name__ == '__main__':
+    cli()
