@@ -1,4 +1,4 @@
-import mod_parser, click
+import mod_parser
 
 def getModsBy(modInfo,x):
     modStat = { (mod["title"] if "title" in mod else f"missing-title"):int((mod[x] if x  in mod else 0)) for mod in modInfo["response"]["publishedfiledetails"]}
@@ -11,7 +11,6 @@ def get_common_mod_authors(modInfo):
         try:
             authors = [author.lstrip() for author in mod_parser.mod_about(mod["publishedfileid"])["ModMetaData"]["author"].split(",")]
         except (KeyError, AttributeError) as err:
-            # print(err)
             authors = ["unknown"]
         
         for author in authors:
@@ -39,8 +38,7 @@ def get_common_mod_dependencies(modInfo):
                     dependencies = []
             else:
                 dependencies = []
-        except (KeyError, AttributeError) as err:
-            print(err)
+        except (KeyError, AttributeError):
             dependencies = ["unknown"]
         
         for dependency in dependencies:
@@ -54,11 +52,6 @@ def get_common_mod_dependencies(modInfo):
                     modDeps[dependency] = [mod_about["ModMetaData"]["name"]]
                 except KeyError:
                     modDeps[dependency] = ["Unknown Mod"]
-    modDeps = {k: v for k, v in sorted(modDeps.items(), key=lambda item: item[1])}
-    print("".join([f"{dependency} has {len(modDeps[dependency])} dependents \n" for dependency in modDeps]))
+    modDeps = {k: v for k, v in sorted(modDeps.items(), key=lambda item: len(item[1]),reverse=True)}
 
-    if click.confirm("Get dependents of specific mod?"):
-        mod = click.prompt("Which mod? (give id)")
-        print("\n".join(modDeps[mod]))
-
-    return 
+    return modDeps

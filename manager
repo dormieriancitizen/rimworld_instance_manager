@@ -159,7 +159,7 @@ def updateMods():
     else:
         print("No mods detected out of date.")
 
-@cli.command
+@cli.command("stats")
 def getModStats():
     # DATA!
     modInfo = loadModInfo()
@@ -175,7 +175,21 @@ def getModStats():
     if choice == "authors":
         statter.get_common_mod_authors(modInfo)
     elif choice == "dependencies":
-        statter.get_common_mod_dependencies(modInfo)
+        modDeps = statter.get_common_mod_dependencies(modInfo)
+
+        modStrings = [f"{dependency}\u0020has {len(modDeps[dependency])} dependents" for dependency in modDeps]
+
+        if click.confirm("Get dependents of specific mod?"):
+            mod = inquirer.select(
+                message="Choose mod",
+                choices=modStrings,
+                pointer=">",
+            ).execute().split("\u0020")[0]
+            print("\n".join(modDeps[mod]))
+        else:
+            print("\n".join(modStrings))
+        
+
     elif choice == "subscribers":
         data = statter.getModsBy(modInfo,"lifetime_subscriptions",)
         out = ""
