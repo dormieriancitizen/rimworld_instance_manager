@@ -5,6 +5,7 @@ from collections import Counter
 from colors import color
 from InquirerPy import inquirer
 
+from datetime import datetime
 from sheet_manager import get_modlist_info, get_instances
 from helpers import *
 import mod_parser, statter
@@ -163,7 +164,7 @@ def getModStats():
     # DATA!
     modInfo = loadModInfo()
 
-    options = ["authors","subscribers","size","time"]
+    options = ["authors","subscribers","size","time","dependencies"]
 
     choice = inquirer.select(
         message="Get mods by",
@@ -173,6 +174,8 @@ def getModStats():
 
     if choice == "authors":
         statter.get_common_mod_authors(modInfo)
+    elif choice == "dependencies":
+        statter.get_common_mod_dependencies(modInfo)
     elif choice == "subscribers":
         data = statter.getModsBy(modInfo,"lifetime_subscriptions",)
         out = ""
@@ -185,15 +188,18 @@ def getModStats():
         for mod in data:
             out+=f"{mod} is {humanize.naturalsize(data[mod], binary=True)} \n"
         print(out)
-    elif choice == time:
+    elif choice == "time":
         data = statter.getModsBy(modInfo,"time_created")
         out = ""
         for mod in data:
-            out+=f"{mod} was made at {data[mod]} unix time\n"
+            out+=f"{mod} was made at {datetime.fromtimestamp(data[mod]).strftime('%Y-%m-%d %H:%M:%S')}\n"
         print(out)
     return
 
 @cli.command("encode")
+def encode():
+    ddsEncode()
+
 def ddsEncode():
     os.system("./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p source_mods")
 
