@@ -1,4 +1,44 @@
-import mod_parser
+import mod_parser, requests, json, click, os
+
+def source_mods_list(steam_only=None):
+    source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
+    if steam_only:
+        source_mods = [f for f in source_mods if f.isnumeric()]
+    return source_mods
+
+def loadModInfo():
+    if click.confirm("Get new mod info?"):
+        print("Getting info")
+
+        # Read from the steam API and write to file
+
+        source_mods = source_mods_list(steam_only=True)
+
+        url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+        
+        # # Construct the publishedfileids parameter
+        # publishedfileids = "&".join(f"publishedfileids%5B{i}%5D={mod_id}" for i, mod_id in enumerate(source_mods))
+        
+        # # Construct the final URL
+        # url = f"https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/?itemcount={len(source_mods)}&{publishedfileids}"
+
+        payload = {"itemcount": len(source_mods)}
+        for i in range(len(source_mods)):
+            payload[f"publishedfileids[{i}]"] = source_mods[i]
+
+        response = requests.post(url, data=payload)
+        
+        responseFile = open("response.json","w")
+        json.dump(response.json(), responseFile)
+        responseFile.close()
+
+        print("Mod info gotten")
+    
+    modInfo = {}
+    with open("response.json", "r") as f:
+        modInfo = json.load(f)
+
+    return modInfo
 
 def getModsBy(modInfo,x):
     modStat = { (mod["title"] if "title" in mod else f"missing-title"):int((mod[x] if x  in mod else 0)) for mod in modInfo["response"]["publishedfiledetails"]}

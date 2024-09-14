@@ -1,14 +1,13 @@
 #!/home/dormierian/Games/rimworld/instance_manager/bin/python
 
-import csv, os, click, time, requests, json, humanize # type: ignore
-from collections import Counter
+import csv, os, click, time, humanize # type: ignore
 from colors import color
 from InquirerPy import inquirer
 
 from datetime import datetime
 from sheet_manager import get_modlist_info, get_instances
 from helpers import *
-import mod_parser, statter
+import mod_parser, statter, rentry
 
 os.chdir(os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__))))
 
@@ -47,17 +46,23 @@ def modlist():
 
     generateModList(instance_name)
 
-def generateModList(instance):
+def getIdList(instance):
     mods = []
 
     with open(f"instances/{instance}/modlist.csv","r") as instance_csv:
         reader = csv.reader(instance_csv)
         for row in reader:
             mods=row
+    
+    return mods
+
+
+def generateModList(instance):
+    mods = getIdList(instance)
 
     print("Clearing active mod folder")
     removeFolder("active/mods")
-    source_mods  = [ f.path.split("/",1)[1] for f in os.scandir("source_mods") if f.is_dir() ]
+    source_mods  = statter.source_mods_list()
     # print(source_mods)
 
     missing_mod_list = []
@@ -96,44 +101,9 @@ def setDownloadTime(mods, write_time=None):
         with open(f"source_mods/{mod}/timeDownloaded",'w') as dateFile:
             dateFile.write(write_time)
 
-def loadModInfo():
-    if click.confirm("Get new mod info?"):
-        print("Getting info")
-
-        # Read from the steam API and write to file
-        source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
-
-        source_mods = [f for f in source_mods if f.isnumeric()]
-
-        url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
-        
-        # # Construct the publishedfileids parameter
-        # publishedfileids = "&".join(f"publishedfileids%5B{i}%5D={mod_id}" for i, mod_id in enumerate(source_mods))
-        
-        # # Construct the final URL
-        # url = f"https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/?itemcount={len(source_mods)}&{publishedfileids}"
-
-        payload = {"itemcount": len(source_mods)}
-        for i in range(len(source_mods)):
-            payload[f"publishedfileids[{i}]"] = source_mods[i]
-
-        response = requests.post(url, data=payload)
-        
-        responseFile = open("response.json","w")
-        json.dump(response.json(), responseFile)
-        responseFile.close()
-
-        print("Mod info gotten")
-    
-    modInfo = {}
-    with open("response.json", "r") as f:
-        modInfo = json.load(f)
-
-    return modInfo
-
 @cli.command("update")
 def updateMods():
-    modInfo = loadModInfo()
+    modInfo = statter.loadModInfo()
     
     modUpdateTimes = { mod["publishedfileid"]:(mod["time_updated"] if "time_updated" in mod else 0) for mod in modInfo["response"]["publishedfiledetails"]}
 
@@ -152,7 +122,7 @@ def updateMods():
 
     if toUpdate:
         print(f"The following {len(toUpdate)} mods are out of date.")
-        print("\n".join(mod_parser.get_mods_names(toUpdate)))
+        print("\n".join(mod_parser.get_mods_names(toUpdate).values()))
 
         if click.confirm("Download them now?"):
             downloadMods(toUpdate)
@@ -162,7 +132,7 @@ def updateMods():
 @cli.command("stats")
 def getModStats():
     # DATA!
-    modInfo = loadModInfo()
+    modInfo = statter.loadModInfo()
 
     options = ["authors","subscribers","size","time","dependencies"]
 
@@ -210,6 +180,25 @@ def getModStats():
         print(out)
     return
 
+@cli.command("rentry")
+def reentry_manager():
+    options = ["Generate","Load"]
+
+    choice = inquirer.select(
+            message="Get mods by",
+            choices=options,
+            pointer=">",
+        ).execute()
+
+    if choice == "Load":
+        url = click.prompt("Rentry Url?")
+        print(rentry.import_rentry(url))
+        print(mod_parser.get_mods_names(statter.source_mods_list()).values())
+    elif choice == "Generate":
+        mods = getIdList("Zea")
+        ren = rentry.compile_rentry(mods,statter.loadModInfo())
+        rentry.upload(ren)
+
 @cli.command("encode")
 def encode():
     ddsEncode()
@@ -220,7 +209,7 @@ def ddsEncode():
 @cli.command
 def whenlastupdated():
     time = click.prompt("Time to set (unix milis)")
-    setDownloadTime([f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()],time)
+    setDownloadTime(statter.source_mods_list(steam_only=True),time)
 
 if __name__ == '__main__':
     cli()
