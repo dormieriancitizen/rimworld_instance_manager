@@ -5,9 +5,9 @@ from colors import color
 from InquirerPy import inquirer
 
 from datetime import datetime
-from sheet_manager import get_modlist_info, get_instances
+from sheet_manager import get_modlist_info, get_instances, set_sorder
 from helpers import *
-import mod_parser, statter, rentry
+import mod_parser, statter, rentry, sorter
 
 os.chdir(os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__))))
 
@@ -24,6 +24,21 @@ def downloadMods(mods):
 
 @cli.command
 def modlist():
+    instance_name = promptInstanceName()    
+
+    sheetGotten = False
+    if click.confirm("Get modlist from sheet?"):
+        sheetGotten = True
+        with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
+            instance_csv.write(get_modlist_info(instance_name))
+
+    generateModList(instance_name)
+
+    if sheetGotten:
+        if click.confirm("Set new sort order on sheet?"):
+            load_sorder_to_sheet(instance_name)
+
+def promptInstanceName():
     instance_name = ""
     if os.path.exists(f"cached_instance_name"):
         if click.confirm("Use cached instance?"):
@@ -39,12 +54,7 @@ def modlist():
             ).execute()
 
             instance_cache.write(instance_name)
-
-    if click.confirm("Get modlist from sheet?"):
-        with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
-            instance_csv.write(get_modlist_info(instance_name))
-
-    generateModList(instance_name)
+    return instance_name
 
 def getIdList(instance):
     mods = []
@@ -195,7 +205,8 @@ def reentry_manager():
         print(rentry.import_rentry(url))
         print(mod_parser.get_mods_names(statter.source_mods_list()).values())
     elif choice == "Generate":
-        mods = getIdList("Zea")
+        instance_name = promptInstanceName()
+        mods = getIdList(instance_name)
         ren = rentry.compile_rentry(mods,statter.loadModInfo())
         rentry.upload(ren)
 
@@ -205,6 +216,16 @@ def encode():
 
 def ddsEncode():
     os.system("./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p source_mods")
+
+@cli.command("sorder")
+def ui_sorder():
+    load_sorder_to_sheet(promptInstanceName())
+
+def load_sorder_to_sheet(instance_name):
+    sorder = sorter.load_sort_order(getIdList(instance_name))
+
+    set_sorder(sorder,instance_name)
+    
 
 @cli.command
 def whenlastupdated():

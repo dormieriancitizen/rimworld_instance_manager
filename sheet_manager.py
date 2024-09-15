@@ -20,3 +20,24 @@ def get_instances():
     sheets = [sheet for sheet in sheets if sheet not in unwanted ]
 
     return sheets
+
+def set_sorder(sorder,instance):    
+    sh = get_spreadsheet()
+    ws = sh.worksheet(instance)
+
+    mids = ws.col_values(3)
+    mids.pop()
+
+    sorder_range = [None] * (len(mids))
+
+    i = 0
+    for mid in mids:
+        if mid in sorder:
+            sorder_range[i] = sorder[mid]
+        i+=1
+    
+    sorder_range = [[x] for x in sorder_range]
+
+    ws.update(sorder_range,"D:D")
+
+    print(sorder_range)
