@@ -10,9 +10,7 @@ def import_rentry(rentry_url):
 
     return mods
 
-def compile_rentry(mods,mod_metadata):
-    steam_mods = {mod["publishedfileid"]: mod for mod in mod_metadata["response"]["publishedfiledetails"]}
-
+def compile_rentry(mods,modd):
 
     report = (
         "# RimWorld mod list       ![](https://github.com/RimSort/RimSort/blob/main/docs/rentry_preview.png?raw=true)"
@@ -21,28 +19,24 @@ def compile_rentry(mods,mod_metadata):
         + f"\n\n\n\n!!! note Mod list length: `{len(mods)}`\n"
     )
 
-    names = mod_parser.get_mods_names(mods)
-
-    pids = mod_parser.get_mods_ids(mods)
     count = 0
 
     for mod in mods:
         count += 1
-        name = names[mod]
-        if mod in steam_mods:
-            preview_url = steam_mods[mod]["preview_url"]+"?imw=100&imh=100&impolicy=Letterbox" if "preview_url" in steam_mods[mod] else "https://github.com/RimSort/RimSort/blob/main/docs/rentry_steam_icon.png?raw=true"
-            
-            url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + str(mod)
+        name = modd[mod]["name"]
+        url = modd[mod]["download_link"]
+        pid = modd[mod]["pid"]
 
-            report += f"\n{str(count) + '.'} ![]({preview_url}) [{name}]({url} packageid: {pids[mod]})"
+        if modd[mod]["source"] == "STEAM":
+            preview_url = modd[mod]["pfid"]
+            report += f"\n{str(count) + '.'} ![]({preview_url}) [{name}]({url} packageid: {pid})"
 
         else:
-            url = None
             if url is None:
-                report += f"\n!!! warning {str(count) + '.'} {name} " + "{" + f"packageid: {pids[mod]}" + "} " # f-strings don't support the squilly brackets
+                report += f"\n!!! warning {str(count) + '.'} {name} " + "{" + f"packageid: {pid}" + "} " # f-strings don't support the squilly brackets
                 
             else:
-                report += f"\n!!! warning {str(count) + '.'} [{name}]({url}) " + "{" + f"packageid: {pids[mod]}" + "} "
+                report += f"\n!!! warning {str(count) + '.'} [{name}]({url}) " + "{" + f"packageid: {pid}" + "} "
     
     return report
 

@@ -1,4 +1,8 @@
-import mod_parser, requests, json, click, os, subprocess
+import mod_parser, requests, json, click, os, subprocess, xmltodict, time
+
+def du(path):
+    # Du in bytes
+    return subprocess.check_output(['du','-sb', path]).split()[0].decode('utf-8')
 
 def source_mods_list(steam_only=None):
     source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
@@ -96,6 +100,28 @@ def get_common_mod_dependencies(modInfo):
 
     return modDeps
 
+def load_sort_order(mods):
+    sorder = {}
+    with open("/home/dormierian/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios/Config/ModsConfig.xml","rb") as ModsConfig:
+        sorder = xmltodict.parse(ModsConfig, dict_constructor=dict)
+    
+    sorder = sorder["ModsConfigData"]["activeMods"]["li"]
+
+    modids = mod_parser.get_mods_ids(mods)
+    modids = {v.lower(): k for k, v in modids.items()}
+
+    ordered_ids = {}
+
+    count = 0
+    for pid in sorder:
+        if pid.startswith("ludeon."):
+            print("Skipped pid "+pid)
+            continue
+        count += 1
+        ordered_ids[modids[pid]] = count
+
+    return ordered_ids
+
 def mod_metadata():
     if click.confirm("Generate new metadata?"):
         return gen_mod_metadata()
@@ -109,9 +135,12 @@ def load_mod_metadata():
     return modd
 
 def gen_mod_metadata():
+    start_time = time.time()
+
     mods = source_mods_list()
     steamd = loadModInfo()
     steam_mods = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
+    sort_order = load_sort_order()
 
     abouts = {}
 
@@ -138,21 +167,22 @@ def gen_mod_metadata():
         d["name"] = abouts[mod]["name"]
         d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else None
         d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else None
+        d["sort"] = sort_order[mod] if mod in sort_order else 1000000000000000
 
         if d["source"] == "STEAM":
             d["download_link"] = "https://steamcommunity.com/workshop/filedetails/?id="+mod
-            d["size"] = steam_mods[mod]["file_size"] if "file_size" in steam_mods[mod] else "0"
-            d["subs"] = steam_mods[mod]["lifetime_subscriptions"] if "lifetime_subscriptions" in steam_mods[mod] else "0"
-            d["pfid"] = steam_mods[mod]["preview_url"] if "preview_url" in steam_mods[mod] else "0"
+            d["size"] = steam_mods[mod]["file_size"] if "file_size" in steam_mods[mod] else du("source_mods/"+mod)
+            d["subs"] = str(steam_mods[mod]["lifetime_subscriptions"]) if "lifetime_subscriptions" in steam_mods[mod] else "0"
+            d["pfid"] = f"{steam_mods[mod]["preview_url"]}?imw=100&imh=100&impolicy=Letterbox" if "preview_url" in steam_mods[mod] else "https://github.com/RimSort/RimSort/blob/main/docs/rentry_steam_icon.png?raw=true"
 
-            d["time_created"] = steam_mods[mod]["time_created"] if "time_created" in steam_mods[mod] else "0"
-            d["time_updated"] = steam_mods[mod]["time_updated"] if "time_updated" in steam_mods[mod] else "0"
+            d["time_created"] = str(steam_mods[mod]["time_created"]) if "time_created" in steam_mods[mod] else "0"
+            d["time_updated"] = str(steam_mods[mod]["time_updated"]) if "time_updated" in steam_mods[mod] else "0"
             with open(f"source_mods/{mod}/timeDownloaded","r") as f:
-                d["time_downloaded"] = f.readlines()
+                d["time_downloaded"] = f.readlines()[0]
 
         else:
             d["download_link"] = d["url"] if d["url"] else ""
-            d["size"] = "0"
+            d["size"] = du("source_mods/"+mod)
             d["subs"] = "0"
             d["pfid"] = "0"
 
@@ -164,3 +194,7 @@ def gen_mod_metadata():
 
     with open("data/modd.json","w") as f:
         json.dump(modd,f)
+    
+    print(f"Generated mod metadata in {time.time()-start_time}")
+
+    return modd

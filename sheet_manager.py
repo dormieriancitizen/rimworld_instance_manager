@@ -41,12 +41,3 @@ def set_sorder(sorder,instance):
     ws.update(sorder_range,"D:D")
 
     print(sorder_range)
-
-def backend_push(modds):
-    range = []
-    for modd in modds:
-        modrange = []
-        for d in modds[modd]:
-            modrange.append(modds[modd][d])
-        range.append(modrange)
-    print(range)
