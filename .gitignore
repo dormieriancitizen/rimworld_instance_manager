@@ -18,6 +18,5 @@ pyvenv.cfg
 service_account.json
 todds
 cached_instance_name
-response.json
 rentry.rimsort.py
 .env

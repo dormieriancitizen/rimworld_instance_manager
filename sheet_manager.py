@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_spreadsheet():
-    gc = gspread.service_account(filename='service_account.json')
+    gc = gspread.service_account(filename='data/service_account.json')
     return gc.open_by_key(os.getenv("SPREADSHEET"))
 
 def get_modlist_info(instance):
@@ -16,7 +16,7 @@ def get_instances():
     sh = get_spreadsheet()
     sheets = [sheet.title for sheet in sh.worksheets()]
     
-    unwanted = ["Mods","SlowModsComparer","ModlistComparer","Instance Template"]
+    unwanted = ["Mods","SlowModsComparer","ModlistComparer","Instance Template","Backend"]
     sheets = [sheet for sheet in sheets if sheet not in unwanted ]
 
     return sheets
@@ -41,3 +41,12 @@ def set_sorder(sorder,instance):
     ws.update(sorder_range,"D:D")
 
     print(sorder_range)
+
+def backend_push(modds):
+    range = []
+    for modd in modds:
+        modrange = []
+        for d in modds[modd]:
+            modrange.append(modds[modd][d])
+        range.append(modrange)
+    print(range)

@@ -19,6 +19,7 @@ def downloadMods(mods):
     # Pass list of ids
     os.system(f"/home/dormierian/Games/rimworld/SteamCMD/steamcmd.sh +logon anonymous +workshop_download_item 294100 {" +workshop_download_item 294100 ".join(mods)} +exit")
     setDownloadTime(mods)
+
     if click.confirm("\nDDS-encode downloaded mods?"):
         ddsEncode()
 
@@ -225,7 +226,10 @@ def load_sorder_to_sheet(instance_name):
     sorder = sorter.load_sort_order(getIdList(instance_name))
 
     set_sorder(sorder,instance_name)
-    
+
+@cli.command("modd")
+def modd():
+    print(statter.mod_metadata())
 
 @cli.command
 def whenlastupdated():

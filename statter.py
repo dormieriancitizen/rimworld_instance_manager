@@ -1,4 +1,4 @@
-import mod_parser, requests, json, click, os
+import mod_parser, requests, json, click, os, subprocess
 
 def source_mods_list(steam_only=None):
     source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
@@ -28,14 +28,14 @@ def loadModInfo():
 
         response = requests.post(url, data=payload)
         
-        responseFile = open("response.json","w")
+        responseFile = open("data/response.json","w")
         json.dump(response.json(), responseFile)
         responseFile.close()
 
         print("Mod info gotten")
     
     modInfo = {}
-    with open("response.json", "r") as f:
+    with open("data/response.json", "r") as f:
         modInfo = json.load(f)
 
     return modInfo
@@ -95,3 +95,72 @@ def get_common_mod_dependencies(modInfo):
     modDeps = {k: v for k, v in sorted(modDeps.items(), key=lambda item: len(item[1]),reverse=True)}
 
     return modDeps
+
+def mod_metadata():
+    if click.confirm("Generate new metadata?"):
+        return gen_mod_metadata()
+    else:
+        return load_mod_metadata()
+
+def load_mod_metadata():
+    modd = {}
+    with open("data/modd.json","r") as f:
+        modd = json.load(f)
+    return modd
+
+def gen_mod_metadata():
+    mods = source_mods_list()
+    steamd = loadModInfo()
+    steam_mods = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
+
+    abouts = {}
+
+    for mod in mods:
+        about = mod_parser.mod_about(mod)
+
+        if "ModMetaData" in about:
+            abouts[mod] = about["ModMetaData"]
+        elif "ModMetadata" in about:
+            abouts[mod] = about["ModMetadata"]
+        else:
+            abouts[mod] = None
+    
+    modd = {}
+    count = 0
+    for mod in mods:
+        count += 1
+
+        d = {}
+
+        d["id"] = mod
+        d["source"] = "STEAM" if mod in steam_mods else "LOCAL"
+        d["pid"] = abouts[mod]["packageId"]
+        d["name"] = abouts[mod]["name"]
+        d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else None
+        d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else None
+
+        if d["source"] == "STEAM":
+            d["download_link"] = "https://steamcommunity.com/workshop/filedetails/?id="+mod
+            d["size"] = steam_mods[mod]["file_size"] if "file_size" in steam_mods[mod] else "0"
+            d["subs"] = steam_mods[mod]["lifetime_subscriptions"] if "lifetime_subscriptions" in steam_mods[mod] else "0"
+            d["pfid"] = steam_mods[mod]["preview_url"] if "preview_url" in steam_mods[mod] else "0"
+
+            d["time_created"] = steam_mods[mod]["time_created"] if "time_created" in steam_mods[mod] else "0"
+            d["time_updated"] = steam_mods[mod]["time_updated"] if "time_updated" in steam_mods[mod] else "0"
+            with open(f"source_mods/{mod}/timeDownloaded","r") as f:
+                d["time_downloaded"] = f.readlines()
+
+        else:
+            d["download_link"] = d["url"] if d["url"] else ""
+            d["size"] = "0"
+            d["subs"] = "0"
+            d["pfid"] = "0"
+
+            d["time_created"] = "0"
+            d["time_updated"] = "0"
+            d["time_downloaded"] = "0"
+
+        modd[mod] = d
+
+    with open("data/modd.json","w") as f:
+        json.dump(modd,f)
