@@ -7,7 +7,7 @@ from InquirerPy import inquirer
 from datetime import datetime
 from sheet_manager import get_modlist_info, get_instances, set_sorder
 from helpers import *
-import mod_parser, statter, rentry, sorter
+import mod_parser, statter, rentry
 
 os.chdir(os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__))))
 
@@ -114,26 +114,19 @@ def setDownloadTime(mods, write_time=None):
 
 @cli.command("update")
 def updateMods():
-    modInfo = statter.loadModInfo()
-    
-    modUpdateTimes = { mod["publishedfileid"]:(mod["time_updated"] if "time_updated" in mod else 0) for mod in modInfo["response"]["publishedfiledetails"]}
-
-    source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
-    source_mods = [f for f in source_mods if f.isnumeric()]
-
+    modd = statter.mod_metadata()
     toUpdate = []
 
-    for mod in source_mods:
-        with open(f"source_mods/{mod}/timeDownloaded","r") as tFile:
-            timeDownloaded = float(tFile.readlines()[0])
-            timeUpdated = float(modUpdateTimes[mod])*1000 # Steam returns seconds, timeDownloaded is in ms
-            # print(f"Mod {mod} downloaded {timeDownloaded} updated {timeUpdated}")
+    for mod in modd:
+        if modd[mod]["source"] == "STEAM":
+            timeDownloaded = modd[mod]["time_downloaded"]
+            timeUpdated = modd[mod]["time_updated"]
             if timeDownloaded < timeUpdated:
                 toUpdate.append(mod)
 
     if toUpdate:
-        print(f"The following {len(toUpdate)} mods are out of date.")
-        print("\n".join(mod_parser.get_mods_names(toUpdate).values()))
+        print(f"The following {len(toUpdate)} mods are out of date:")
+        print("\n".join([modd[mod]["name"] for mod in toUpdate]))
 
         if click.confirm("Download them now?"):
             downloadMods(toUpdate)
@@ -208,7 +201,7 @@ def reentry_manager():
     elif choice == "Generate":
         instance_name = promptInstanceName()
         mods = getIdList(instance_name)
-        ren = rentry.compile_rentry(mods,statter.loadModInfo())
+        ren = rentry.compile_rentry(mods,statter.mod_metadata())
         rentry.upload(ren)
 
 @cli.command("encode")
@@ -223,13 +216,13 @@ def ui_sorder():
     load_sorder_to_sheet(promptInstanceName())
 
 def load_sorder_to_sheet(instance_name):
-    sorder = sorter.load_sort_order(getIdList(instance_name))
+    sorder = statter.load_sort_order(getIdList(instance_name))
 
     set_sorder(sorder,instance_name)
 
 @cli.command("modd")
 def modd():
-    print(statter.mod_metadata())
+    statter.mod_metadata()
 
 @cli.command
 def whenlastupdated():
