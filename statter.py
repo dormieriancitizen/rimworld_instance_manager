@@ -107,7 +107,7 @@ def load_sort_order(mods):
     
     sorder = sorder["ModsConfigData"]["activeMods"]["li"]
 
-    modids = mod_parser.get_mods_ids(mods)
+    modids = mod_parser.get_mods_x(mods,"packageId")
     modids = {v.lower(): k for k, v in modids.items()}
 
     ordered_ids = {}

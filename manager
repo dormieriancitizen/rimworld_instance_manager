@@ -197,7 +197,7 @@ def reentry_manager():
     if choice == "Load":
         url = click.prompt("Rentry Url?")
         print(rentry.import_rentry(url))
-        print(mod_parser.get_mods_names(statter.source_mods_list()).values())
+        print(statter.source_mods_list()).values()
     elif choice == "Generate":
         instance_name = promptInstanceName()
         mods = getIdList(instance_name)

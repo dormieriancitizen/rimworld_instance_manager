@@ -23,9 +23,3 @@ def get_mods_x(mods,x):
         xs[aboutkey] = about["ModMetaData"][x] if "ModMetaData" in about else about["ModMetadata"][x] if "ModMetadata" in about else f"Unknown {x}: {about}"
 
     return xs
-
-def get_mods_names(mods):
-    return get_mods_x(mods,"name")
-
-def get_mods_ids(mods):
-    return get_mods_x(mods,"packageId")
