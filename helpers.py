@@ -1,6 +1,6 @@
 import os, shutil, subprocess
 
-def removeFolder(folder):
+def empty_folder(folder):
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
         try:

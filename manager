@@ -4,7 +4,7 @@ import os, click, humanize # type: ignore
 from InquirerPy import inquirer
 
 from datetime import datetime
-from sheet_manager import get_modlist_info, get_instances, set_sorder
+from sheet_manager import get_modlist_info, get_instances, get_slow_mods
 from helpers import *
 import mod_handler, statter, rentry
 
@@ -28,7 +28,7 @@ def modlist():
 
     if sheetGotten:
         if click.confirm("Set new sort order on sheet?"):
-            load_sorder_to_sheet(instance_name)
+            mod_handler.load_sorder_to_sheet(instance_name)
 
 def promptInstanceName():
     instance_name = ""
@@ -143,19 +143,19 @@ def getModStats():
         ))
         
     elif choice == "subscribers":
-        data = statter.sort_modds_by(statter.mod_metadata(),"subs")
+        data = statter.mod_metadata(sort_by="subs")
         out = ""
         for mod in data:
             out+=f"{data[mod]["name"]} has {data[mod]["subs"]} subscribers \n"
         print(out)
     elif choice == "size":
-        data = statter.sort_modds_by(statter.mod_metadata(),"size")
+        data = statter.mod_metadata(sort_by="size")
         out = ""
         for mod in data:
             out+=f"{data[mod]["name"]} is {humanize.naturalsize(data[mod]["size"], binary=True)} \n"
         print(out)
     elif choice == "time":
-        data = statter.sort_modds_by(statter.mod_metadata(),"time_created")
+        data = statter.mod_metadata(sort_by="time_created")
         out = ""
         for mod in data:
             out+=f"{data[mod]["name"]} was made at {datetime.fromtimestamp(int(data[mod]["time_created"])).strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -164,7 +164,7 @@ def getModStats():
 
 @cli.command("rentry")
 def reentry_manager():
-    options = ["Generate","Load"]
+    options = ["Generate","Load","Check for Slow Mods"]
 
     choice = inquirer.select(
             message="Get mods by",
@@ -175,25 +175,21 @@ def reentry_manager():
     if choice == "Load":
         url = click.prompt("Rentry Url?")
         print(rentry.import_rentry(url))
-        print(statter.source_mods_list()).values()
     elif choice == "Generate":
         instance_name = promptInstanceName()
         mods = mod_handler.getIdList(instance_name)
         ren = rentry.compile_rentry(mods,statter.mod_metadata())
         rentry.upload(ren)
+    elif choice == "Check for Slow Mods":
+        url = click.prompt("Rentry Url?")
+        modlist = rentry.import_rentry(url)
+        slow_mods = get_slow_mods()
+
+        print([x for x in modlist if x in slow_mods])
 
 @cli.command("encode")
 def encode():
-    mod_handler.ddsEncode()
-
-@cli.command("sorder")
-def ui_sorder():
-    load_sorder_to_sheet(promptInstanceName())
-
-def load_sorder_to_sheet(instance_name):
-    sorder = statter.load_sort_order(mod_handler.getIdList(instance_name))
-
-    set_sorder(sorder,instance_name)
+    mod_handler.ddsEncode("source_mods")
 
 @cli.command("modd")
 def modd():

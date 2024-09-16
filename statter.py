@@ -42,10 +42,6 @@ def loadModInfo():
 
     return modInfo
 
-def sort_modds_by(modd,key):
-    modd = dict(sorted(modd.items(), key=lambda item: int(item[1][key])))
-    return modd
-
 def load_sort_order(mods):
     sorder = {}
     with open("/home/dormierian/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios/Config/ModsConfig.xml","rb") as ModsConfig:
@@ -68,11 +64,19 @@ def load_sort_order(mods):
 
     return ordered_ids
 
-def mod_metadata():
+def mod_metadata(sort_by = None, index_by = None, prune = None):
     if click.confirm("Generate new metadata?"):
-        return gen_mod_metadata()
+        modd = gen_mod_metadata()
     else:
-        return load_mod_metadata()
+        modd = load_mod_metadata()
+    
+    if prune:
+        modd = {e: modd[e] for e in modd if e in prune}
+    if sort_by:
+        modd = dict(sorted(modd.items(), key=lambda item: int(item[1][sort_by])))
+    if index_by:
+        modd = {modd[e][index_by]:modd[e] for e in modd}
+    return modd
 
 def load_mod_metadata():
     modd = {}

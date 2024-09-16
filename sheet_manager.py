@@ -41,3 +41,10 @@ def set_sorder(sorder,instance):
     ws.update(sorder_range,"D:D")
 
     print(sorder_range)
+
+def get_slow_mods():
+    gc = gspread.service_account(filename='data/service_account.json')
+    sh = gc.open_by_key("14xvMkf9zo1EjMMNkRNCWoE8QWVHQWd11v69tuyXT10A")
+    slow_mods = sh.worksheet("Slow Mods").col_values(2)
+    slow_mods.pop()
+    return slow_mods
