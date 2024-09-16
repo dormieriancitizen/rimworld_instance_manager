@@ -46,46 +46,6 @@ def sort_modds_by(modd,key):
     modd = dict(sorted(modd.items(), key=lambda item: int(item[1][key])))
     return modd
 
-
-def getModsBy(modInfo,x):
-    modStat = { (mod["title"] if "title" in mod else f"missing-title"):int((mod[x] if x  in mod else 0)) for mod in modInfo["response"]["publishedfiledetails"]}
-    modStat = {k: v for k, v in sorted(modStat.items(), key=lambda item: item[1])} # Some dict-sorting hackery
-    return modStat
-
-def get_common_mod_dependencies(modInfo):
-    modDeps = {}
-    for mod in modInfo["response"]["publishedfiledetails"]:
-        try:
-            mod_about = mod_parser.mod_about(mod["publishedfileid"])
-            if "modDependencies" in mod_about["ModMetaData"]:
-                try:
-                    dep = mod_about["ModMetaData"]["modDependencies"]["li"]
-                    if "packageId" in dep:
-                        dependencies = [dep["packageId"]]
-                    else:
-                        dependencies = [x["packageId"] for x in dep]
-                except TypeError:
-                    dependencies = []
-            else:
-                dependencies = []
-        except (KeyError, AttributeError):
-            dependencies = ["unknown"]
-        
-        for dependency in dependencies:
-            if dependency in modDeps:
-                try:
-                    modDeps[dependency].append(mod_about["ModMetaData"]["name"])
-                except KeyError:
-                    modDeps[dependency].append("Unknown Mod")
-            else:
-                try:
-                    modDeps[dependency] = [mod_about["ModMetaData"]["name"]]
-                except KeyError:
-                    modDeps[dependency] = ["Unknown Mod"]
-    modDeps = {k: v for k, v in sorted(modDeps.items(), key=lambda item: len(item[1]),reverse=True)}
-
-    return modDeps
-
 def load_sort_order(mods):
     sorder = {}
     with open("/home/dormierian/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios/Config/ModsConfig.xml","rb") as ModsConfig:

@@ -1,27 +1,18 @@
 #!/home/dormierian/Games/rimworld/instance_manager/bin/python
 
-import csv, os, click, time, humanize # type: ignore
-from colors import color
+import os, click, humanize # type: ignore
 from InquirerPy import inquirer
 
 from datetime import datetime
 from sheet_manager import get_modlist_info, get_instances, set_sorder
 from helpers import *
-import mod_parser, statter, rentry
+import mod_handler, statter, rentry
 
 os.chdir(os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__))))
 
 @click.group
 def cli():
     pass
-
-def downloadMods(mods):
-    # Pass list of ids
-    os.system(f"/home/dormierian/Games/rimworld/SteamCMD/steamcmd.sh +logon anonymous +workshop_download_item 294100 {" +workshop_download_item 294100 ".join(mods)} +exit")
-    setDownloadTime(mods)
-
-    if click.confirm("\nDDS-encode downloaded mods?"):
-        ddsEncode()
 
 @cli.command
 def modlist():
@@ -33,7 +24,7 @@ def modlist():
         with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
             instance_csv.write(get_modlist_info(instance_name))
 
-    generateModList(instance_name)
+    mod_handler.generateModList(instance_name)
 
     if sheetGotten:
         if click.confirm("Set new sort order on sheet?"):
@@ -57,61 +48,6 @@ def promptInstanceName():
             instance_cache.write(instance_name)
     return instance_name
 
-def getIdList(instance):
-    mods = []
-
-    with open(f"instances/{instance}/modlist.csv","r") as instance_csv:
-        reader = csv.reader(instance_csv)
-        for row in reader:
-            mods=row
-    
-    return mods
-
-
-def generateModList(instance):
-    mods = getIdList(instance)
-
-    print("Clearing active mod folder")
-    removeFolder("active/mods")
-    source_mods  = statter.source_mods_list()
-    # print(source_mods)
-
-    missing_mod_list = []
-
-    for mod in mods:
-        if mod in source_mods:
-            continue
-        else:
-            print(f"Missing Mod: {mod}")
-            missing_mod_list.append(mod)
-    
-    if missing_mod_list:
-        if click.confirm("Missing mods detected. Try to download?"):
-            downloadMods(missing_mod_list)
-        generateModList(instance)
-    else:
-        for mod in mods:
-            try:
-                if mod in source_mods:
-                    os.symlink(os.path.abspath(f"source_mods/{mod}"),f"active/mods/{mod}")
-                else:
-                    print(f"Missing Mod. Download failed?: {mod}")
-            except FileExistsError:
-                print(f"Duplicate Mod: {mod}")
-        if click.confirm("Run RimPy?"):
-            os.chdir("../rimpy/")
-            os.system("./rimpy")
-
-def setDownloadTime(mods, write_time=None):
-    if not write_time:
-        write_time = str(time.time() * 1000)
-
-    for mod in mods:
-        if not os.path.exists(f"source_mods/{mod}/timeDownloaded"):
-            open(f"source_mods/{mod}/timeDownloaded","x")
-        with open(f"source_mods/{mod}/timeDownloaded",'w') as dateFile:
-            dateFile.write(write_time)
-
 @cli.command("update")
 def updateMods():
     modd = statter.mod_metadata()
@@ -129,7 +65,7 @@ def updateMods():
         print("\n".join([modd[mod]["name"] for mod in toUpdate]))
 
         if click.confirm("Download them now?"):
-            downloadMods(toUpdate)
+            mod_handler.downloadMods(toUpdate)
     else:
         print("No mods detected out of date.")
 
@@ -242,23 +178,20 @@ def reentry_manager():
         print(statter.source_mods_list()).values()
     elif choice == "Generate":
         instance_name = promptInstanceName()
-        mods = getIdList(instance_name)
+        mods = mod_handler.getIdList(instance_name)
         ren = rentry.compile_rentry(mods,statter.mod_metadata())
         rentry.upload(ren)
 
 @cli.command("encode")
 def encode():
-    ddsEncode()
-
-def ddsEncode():
-    os.system("./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p source_mods")
+    mod_handler.ddsEncode()
 
 @cli.command("sorder")
 def ui_sorder():
     load_sorder_to_sheet(promptInstanceName())
 
 def load_sorder_to_sheet(instance_name):
-    sorder = statter.load_sort_order(getIdList(instance_name))
+    sorder = statter.load_sort_order(mod_handler.getIdList(instance_name))
 
     set_sorder(sorder,instance_name)
 
@@ -269,7 +202,7 @@ def modd():
 @cli.command
 def whenlastupdated():
     time = click.prompt("Time to set (unix milis)")
-    setDownloadTime(statter.source_mods_list(steam_only=True),time)
+    mod_handler.setDownloadTime(statter.source_mods_list(steam_only=True),time)
 
 if __name__ == '__main__':
     cli()
