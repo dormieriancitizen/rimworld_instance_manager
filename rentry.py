@@ -1,4 +1,5 @@
-import regex, requests, mod_parser
+import regex, requests
+import numpy as np
 from rentryupload import RentryUpload
 from urllib.parse import urlparse
 
@@ -12,16 +13,27 @@ def import_rentry(rentry_url):
 
 def compile_rentry(mods,modd):
 
+    modd = {mod: modd[mod] for mod in modd if mod in mods}
+
+    keys = list(modd.keys())
+    vals = list(modd.values())
+
+    sorted_value_index = np.argsort([x["sort"] for x in list(modd.values())])
+
+    modd = {keys[i]: vals[i] for i in sorted_value_index}
+
     report = (
         "# RimWorld mod list       ![](https://github.com/RimSort/RimSort/blob/main/docs/rentry_preview.png?raw=true)"
         + f"\nCreated with a bad python script I wrote with a lot of code from RimSort"
         + f"\nMod list was created for game version: 1.5"
+        + f"\nCore and DLCs are missing because I can't be bothered to fix my code, but all DLCs are in this list"
+        + "\n!!! info Local mods are marked as yellow labels with packageid in brackets."
         + f"\n\n\n\n!!! note Mod list length: `{len(mods)}`\n"
     )
 
     count = 0
 
-    for mod in mods:
+    for mod in modd:
         count += 1
         name = modd[mod]["name"]
         url = modd[mod]["download_link"]
@@ -45,7 +57,6 @@ def upload(text):
     successful = rentry_uploader.upload_success
     host = urlparse(rentry_uploader.url).hostname if successful else None
     if rentry_uploader.url and host and host.endswith("rentry.co"):  # type: ignore
-        print("Upload success")
-        print(rentry_uploader.url)
+        pass
     else:
         print("Failed to upload")

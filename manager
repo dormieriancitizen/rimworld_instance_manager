@@ -135,9 +135,6 @@ def updateMods():
 
 @cli.command("stats")
 def getModStats():
-    # DATA!
-    modInfo = statter.loadModInfo()
-
     options = ["authors","subscribers","size","time","dependencies"]
 
     choice = inquirer.select(
@@ -147,40 +144,85 @@ def getModStats():
     ).execute()
 
     if choice == "authors":
-        statter.get_common_mod_authors(modInfo)
+        modd = statter.mod_metadata()
+
+        authors = {}
+        for d in modd:
+            if modd[d]["author"]:
+                # Split authors by commas, strip whitespace, and increment mod count for each author
+
+                for author in [x.lstrip() for x in modd[d]["author"].split(",")]:
+                    if author in authors:
+                        authors[author].append(d)
+                    else:
+                        authors[author] = [d]
+
+        # Sort authors by the number of mods they made (descending order)
+        authors = {k: v for k, v in sorted(authors.items(), key=lambda item: len(item[1]), reverse=True)}
+
+        # Print the sorted list of authors with mod counts
+        modStrings = {f"{author}: {len(authors[author])} mods": author for author in authors}
+
+        author = inquirer.select(
+            message="Choose author",
+            choices=modStrings,
+            pointer=">",
+        ).execute()
+
+        author = modStrings[author]
+
+        print("\n".join([modd[mod]["name"] for mod in authors[author]]))
+
     elif choice == "dependencies":
-        modDeps = statter.get_common_mod_dependencies(modInfo)
+        modd = statter.mod_metadata()
+        deps = {}
 
-        modStrings = [f"{dependency}\u0020has {len(modDeps[dependency])} dependents" for dependency in modDeps]
+        for d in modd:
+            if modd[d]["deps"]:
+                # Split authors by commas, strip whitespace, and increment mod count for each author
+                for dep in modd[d]["deps"]:
+                    if dep in deps:
+                        deps[dep].append(d)
+                    else:
+                        deps[dep] = [d]
 
-        if click.confirm("Get dependents of specific mod?"):
-            mod = inquirer.select(
-                message="Choose mod",
-                choices=modStrings,
-                pointer=">",
-            ).execute().split("\u0020")[0]
-            print("\n".join(modDeps[mod]))
-        else:
-            print("\n".join(modStrings))
+        # Sort authors by the number of mods they made (descending order)
+        deps = {k: v for k, v in sorted(deps.items(), key=lambda item: len(item[1]), reverse=True)}
+
+        modd_by_pid = {modd[x]["pid"]: modd[x] for x in modd}
+
+        # Print the sorted list of authors with mod counts
+        modStrings = {f"{modd_by_pid[dep]["name"] if dep in modd_by_pid else dep}: {len(deps[dep])} mods": dep for dep in deps}
+
+        dep = inquirer.select(
+            message="Select mod to get dependencies of",
+            choices=modStrings,
+            pointer=">",
+        ).execute()
+
+        dep = modStrings[dep]
+
+        print("\n".join(
+            [modd[dep]["name"] for dep in deps[dep]]
+        ))
         
-
     elif choice == "subscribers":
-        data = statter.getModsBy(modInfo,"lifetime_subscriptions",)
+        data = statter.sort_modds_by(statter.mod_metadata(),"subs")
         out = ""
         for mod in data:
-            out+=f"{mod} has {data[mod]} subscribers \n"
+            out+=f"{data[mod]["name"]} has {data[mod]["subs"]} subscribers \n"
         print(out)
     elif choice == "size":
-        data = statter.getModsBy(modInfo,"file_size")
+        data = statter.sort_modds_by(statter.mod_metadata(),"size")
         out = ""
         for mod in data:
-            out+=f"{mod} is {humanize.naturalsize(data[mod], binary=True)} \n"
+            out+=f"{data[mod]["name"]} is {humanize.naturalsize(data[mod]["size"], binary=True)} \n"
         print(out)
     elif choice == "time":
-        data = statter.getModsBy(modInfo,"time_created")
+        data = statter.sort_modds_by(statter.mod_metadata(),"time_created")
         out = ""
         for mod in data:
-            out+=f"{mod} was made at {datetime.fromtimestamp(data[mod]).strftime('%Y-%m-%d %H:%M:%S')}\n"
+            out+=f"{data[mod]["name"]} was made at {datetime.fromtimestamp(int(data[mod]["time_created"])).strftime('%Y-%m-%d %H:%M:%S')}\n"
         print(out)
     return
 

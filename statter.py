@@ -1,8 +1,6 @@
-import mod_parser, requests, json, click, os, subprocess, xmltodict, time
+import mod_parser, requests, json, click, os, xmltodict, time
 
-def du(path):
-    # Du in bytes
-    return subprocess.check_output(['du','-sb', path]).split()[0].decode('utf-8')
+from helpers import du
 
 def source_mods_list(steam_only=None):
     source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
@@ -44,27 +42,15 @@ def loadModInfo():
 
     return modInfo
 
+def sort_modds_by(modd,key):
+    modd = dict(sorted(modd.items(), key=lambda item: int(item[1][key])))
+    return modd
+
+
 def getModsBy(modInfo,x):
     modStat = { (mod["title"] if "title" in mod else f"missing-title"):int((mod[x] if x  in mod else 0)) for mod in modInfo["response"]["publishedfiledetails"]}
     modStat = {k: v for k, v in sorted(modStat.items(), key=lambda item: item[1])} # Some dict-sorting hackery
     return modStat
-
-def get_common_mod_authors(modInfo):
-    modAuthors = {}
-    for mod in modInfo["response"]["publishedfiledetails"]:
-        try:
-            authors = [author.lstrip() for author in mod_parser.mod_about(mod["publishedfileid"])["ModMetaData"]["author"].split(",")]
-        except (KeyError, AttributeError) as err:
-            authors = ["unknown"]
-        
-        for author in authors:
-            if author in modAuthors:
-                modAuthors[author] += 1
-            else:
-                modAuthors[author] = 1
-    modAuthors = {k: v for k, v in sorted(modAuthors.items(), key=lambda item: item[1])}
-    print("".join([f"{author} has made {modAuthors[author]} mods \n" for author in modAuthors]))
-    return
 
 def get_common_mod_dependencies(modInfo):
     modDeps = {}
@@ -140,7 +126,8 @@ def gen_mod_metadata():
     mods = source_mods_list()
     steamd = loadModInfo()
     steam_mods = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
-    sort_order = load_sort_order()
+    
+    sort_order = load_sort_order(mods)
 
     abouts = {}
 
@@ -168,6 +155,16 @@ def gen_mod_metadata():
         d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else None
         d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else None
         d["sort"] = sort_order[mod] if mod in sort_order else 1000000000000000
+
+        if "modDependencies" in abouts[mod]:
+            if abouts[mod]["modDependencies"]:
+                deps = abouts[mod]["modDependencies"]["li"]
+                deps = [deps] if isinstance(deps,dict) else deps
+                deps = [dep["packageId"] for dep in deps]
+            else:
+                deps = []
+
+        d["deps"] = deps
 
         if d["source"] == "STEAM":
             d["download_link"] = "https://steamcommunity.com/workshop/filedetails/?id="+mod
