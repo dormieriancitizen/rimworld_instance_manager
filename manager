@@ -6,7 +6,7 @@ from InquirerPy import inquirer
 from datetime import datetime
 from sheet_manager import get_modlist_info, get_instances, get_slow_mods
 from helpers import *
-import mod_handler, statter, rentry
+import mod_handler, statter, rentry, sorter
 
 os.chdir(os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__))))
 
@@ -199,6 +199,10 @@ def modd():
 def whenlastupdated():
     time = click.prompt("Time to set (unix milis)")
     mod_handler.setDownloadTime(statter.source_mods_list(steam_only=True),time)
+
+@cli.command("sort")
+def sort_modlist():
+    sorter.sorter(mod_handler.getIdList(promptInstanceName()))
 
 if __name__ == '__main__':
     cli()

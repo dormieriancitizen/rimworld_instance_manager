@@ -1,6 +1,7 @@
-import statter, click, os, csv, time
+import click, os, csv, time
 from helpers import *
 
+import statter, sorter
 from sheet_manager import set_sorder
 
 def generateModList(instance):
@@ -33,9 +34,8 @@ def generateModList(instance):
                     print(f"Missing Mod. Download failed?: {mod}")
             except FileExistsError:
                 print(f"Duplicate Mod: {mod}")
-        if click.confirm("Run RimPy?"):
-            os.chdir("../rimpy/")
-            os.system("./rimpy")
+        print("Sorting mods")
+        sorter.sorter(getIdList(instance))
 
 def downloadMods(mods):
     # Pass list of ids
@@ -47,13 +47,13 @@ def downloadMods(mods):
         os.symlink(os.path.abspath(f"source_mods/{mod}"),f"active/fresh/{mod}")
         # Move fresh mods to a folder to perform operations on
     
-    extra_folders = search_folders("active/fresh",[".git","obj"])
-    if extra_folders:
-        if click.confirm("Detected some extraneous folders, delete them?"):
-            deleted_size = sum([du(x) for x in extra_folders])
-            for folder in extra_folders:
-                empty_folder(folder)
-            print(f"Deleted {deleted_size} bytes of extra stuff")
+    # extra_folders = search_folders("active/fresh",[".git","obj"])
+    # if extra_folders:
+    #     if click.confirm("Detected some extraneous folders, delete them?"):
+    #         deleted_size = sum([du(x) for x in extra_folders])
+    #         for folder in extra_folders:
+    #             empty_folder(folder)
+    #         print(f"Deleted {deleted_size} bytes of extra stuff")
 
     if click.confirm("\nDDS-encode downloaded mods?"):
         ddsEncode("active/fresh")

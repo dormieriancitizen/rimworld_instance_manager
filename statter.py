@@ -1,6 +1,7 @@
 import mod_parser, requests, json, click, os, xmltodict, time
 
 from helpers import du
+from colorama import Fore, Back, Style
 
 def source_mods_list(steam_only=None):
     source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
@@ -57,38 +58,34 @@ def load_sort_order(mods):
     count = 0
     for pid in sorder:
         if pid.startswith("ludeon."):
-            print("Skipped pid "+pid)
+            print(Style.DIM + "Skipped pid "+pid + Style.RESET_ALL)
             continue
         count += 1
         ordered_ids[modids[pid]] = count
 
     return ordered_ids
 
-def mod_metadata(sort_by = None, index_by = None, prune = None):
+def mod_metadata(sort_by = None, index_by = None, prune_by = None):
     if click.confirm("Generate new metadata?"):
         modd = gen_mod_metadata()
     else:
-        modd = load_mod_metadata()
-    
-    if prune:
-        modd = {e: modd[e] for e in modd if e in prune}
+        modd = {}
+        with open("data/modd.json","r") as f:
+            modd = json.load(f)    
+    if prune_by:
+        modd = {e: modd[e] for e in modd if e in prune_by}
     if sort_by:
         modd = dict(sorted(modd.items(), key=lambda item: int(item[1][sort_by])))
     if index_by:
         modd = {modd[e][index_by]:modd[e] for e in modd}
     return modd
 
-def load_mod_metadata():
-    modd = {}
-    with open("data/modd.json","r") as f:
-        modd = json.load(f)
-    return modd
-
 def gen_mod_metadata():
+    steamd = loadModInfo()
+
     start_time = time.time()
 
     mods = source_mods_list()
-    steamd = loadModInfo()
     steam_mods = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
     
     sort_order = load_sort_order(mods)
@@ -113,8 +110,15 @@ def gen_mod_metadata():
         d = {}
 
         d["id"] = mod
-        d["source"] = "STEAM" if mod in steam_mods else "LOCAL"
-        d["pid"] = abouts[mod]["packageId"]
+        d["pid"] = abouts[mod]["packageId"].lower()
+
+        if d["pid"].startswith("ludeon."):
+            d["source"] = "LUDEON"
+        elif mod in steam_mods:
+            d["source"] = "STEAM"
+        else:
+            d["source"] = "LOCAL"
+        
         d["name"] = abouts[mod]["name"]
         d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else None
         d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else None
@@ -122,13 +126,41 @@ def gen_mod_metadata():
 
         if "modDependencies" in abouts[mod]:
             if abouts[mod]["modDependencies"]:
-                deps = abouts[mod]["modDependencies"]["li"]
-                deps = [deps] if isinstance(deps,dict) else deps
-                deps = [dep["packageId"] for dep in deps]
+                if abouts[mod]["modDependencies"]["li"]:
+                    deps = abouts[mod]["modDependencies"]["li"]
+                    deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
+                    deps = [dep["packageId"].lower() for dep in deps]
+                else:
+                    deps = []
             else:
                 deps = []
-
         d["deps"] = deps
+
+        deps = []
+        if "loadBefore" in abouts[mod]:
+            if abouts[mod]["loadBefore"]:
+                if abouts[mod]["loadBefore"]["li"]:
+                    deps = abouts[mod]["loadBefore"]["li"]
+                    deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
+                    deps = [dep.lower() for dep in deps]
+                else:
+                    deps = []
+            else:
+                deps = []
+        d["loadBefore"] = deps
+
+        deps = []
+        if "loadAfter" in abouts[mod]:
+            if abouts[mod]["loadAfter"]:
+                if abouts[mod]["loadAfter"]["li"]:
+                    deps = abouts[mod]["loadAfter"]["li"]
+                    deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
+                    deps = [dep.lower() for dep in deps]
+                else:
+                    deps = []
+            else:
+                deps = []
+        d["loadAfter"] = deps
 
         if d["source"] == "STEAM":
             d["download_link"] = "https://steamcommunity.com/workshop/filedetails/?id="+mod
@@ -156,6 +188,27 @@ def gen_mod_metadata():
     with open("data/modd.json","w") as f:
         json.dump(modd,f)
     
-    print(f"Generated mod metadata in {time.time()-start_time}")
+    print(f"{Style.DIM}Generated mod metadata in {time.time()-start_time}{Style.RESET_ALL}")
 
     return modd
+
+def instance_metadata(modlist):
+    modd = mod_metadata(prune_by=modlist,index_by="pid")
+    comun_rules = fetch_rimsort_community_rules()["rules"]
+    comun_rules = {x: comun_rules[x] for x in comun_rules if x in modd}
+
+    for mod in comun_rules:
+        if "loadBefore" in comun_rules[mod]:
+            for rule in comun_rules[mod]["loadBefore"]:
+                if rule in modd and not rule in modd[mod]["loadBefore"]:
+                    modd[mod]["loadBefore"].append(rule.lower())
+        if "loadAfter" in comun_rules[mod]:
+            for rule in comun_rules[mod]["loadAfter"]:
+                if rule in modd and not rule in modd[mod]["loadAfter"]:
+                    modd[mod]["loadAfter"].append(rule.lower())
+    return modd
+
+def fetch_rimsort_community_rules():
+    os.system("git -C data/rs_rules pull")
+    with open("data/rs_rules/communityRules.json", "r") as f:
+        return json.load(f)
