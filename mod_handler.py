@@ -1,14 +1,12 @@
 import click, os, csv, time
 from helpers import *
-from collections import Counter
 
 import statter, sorter
-from sheet_manager import set_sorder
 
 def generate_modlist(instance):
     # Validate modlist
     source_mods  = statter.source_mods_list()
-    mods = getIdList(instance)
+    mods = get_id_list(instance)
     mods, dupes = duplicate_check(mods)
     if dupes:
         print("\n".join([f"Duplicate: {x}. Removed." for x in dupes]))
@@ -40,7 +38,7 @@ def generate_modlist(instance):
     link_modlist(mods)
 
     print("Sorting mods")
-    sorter.sorter(getIdList(instance))
+    sorter.sorter(get_id_list(instance))
 
 def link_modlist(mods):
 
@@ -60,30 +58,22 @@ def link_modlist(mods):
 def downloadMods(mods,regen_mods=False):
     # Pass list of ids
     os.system(f"/home/dormierian/Games/rimworld/SteamCMD/steamcmd.sh +logon anonymous +workshop_download_item 294100 {" +workshop_download_item 294100 ".join(mods)} +exit")
-    setDownloadTime(mods)
+    set_download_time(mods)
 
     empty_folder("active/fresh/")
     for mod in mods:
         os.symlink(os.path.abspath(f"source_mods/{mod}"),f"active/fresh/{mod}")
         # Move fresh mods to a folder to perform operations on
-    
-    # extra_folders = search_folders("active/fresh",[".git","obj"])
-    # if extra_folders:
-    #     if click.confirm("Detected some extraneous folders, delete them?"):
-    #         deleted_size = sum([du(x) for x in extra_folders])
-    #         for folder in extra_folders:
-    #             empty_folder(folder)
-    #         print(f"Deleted {deleted_size} bytes of extra stuff")
 
     if click.confirm("\nDDS-encode downloaded mods?"):
-        ddsEncode("active/fresh")
+        dds_encode("active/fresh")
 
     # Regenerate the metadata and return the fresh list
     if regen_mods:
         return statter.partial_metadata_regen(mods)
     
 
-def setDownloadTime(mods, write_time=None):
+def set_download_time(mods, write_time=None):
     if not write_time:
         write_time = str(time.time() * 1000)
 
@@ -93,10 +83,10 @@ def setDownloadTime(mods, write_time=None):
         with open(f"source_mods/{mod}/timeDownloaded",'w') as dateFile:
             dateFile.write(write_time)
 
-def ddsEncode(path):
+def dds_encode(path):
     os.system(f"./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p {path}")
 
-def getIdList(instance):
+def get_id_list(instance):
     mods = []
 
     with open(f"instances/{instance}/modlist.csv","r") as instance_csv:
@@ -105,11 +95,6 @@ def getIdList(instance):
             mods=row
     
     return mods
-
-def load_sorder_to_sheet(instance_name):
-    sorder = statter.load_sort_order(getIdList(instance_name))
-
-    set_sorder(sorder,instance_name)
 
 def search_folders(folder,search):
     results = []

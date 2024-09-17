@@ -9,8 +9,9 @@ def source_mods_list(steam_only=None):
         source_mods = [f for f in source_mods if f.isnumeric()]
     return source_mods
 
-def loadModInfo(fetch=False,mods=None):
-    if fetch or click.confirm("Get new mod info?"):
+def fetch_mod_info(fetch=False,mods=None):
+    if fetch or click.confirm("Fetch new mod info?"):
+        start_time = time.time()
         print("Getting info")
 
         # Read from the steam API and write to file
@@ -35,7 +36,7 @@ def loadModInfo(fetch=False,mods=None):
         json.dump(response.json(), responseFile)
         responseFile.close()
 
-        print("Mod info gotten")
+        print(f"{Style.DIM}Fetched from steam in {time.time()-start_time}{Style.RESET_ALL}")
     
     modInfo = {}
     with open("data/response.json", "r") as f:
@@ -164,7 +165,7 @@ def individual_mod(mod,steam_mods,sort_order,abouts):
     return d
 
 def gen_mod_metadata():
-    steamd = loadModInfo()
+    steamd = fetch_mod_info()
 
     # Don't include time to fetch mod info
     start_time = time.time()
@@ -202,7 +203,7 @@ def partial_metadata_regen(mods):
 
     modd = load_mod_metadata()
 
-    steamd = loadModInfo(fetch=True,mods=mods)
+    steamd = fetch_mod_info(fetch=True,mods=mods)
     steam_mods = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
     sort_order = load_sort_order(mods)
 

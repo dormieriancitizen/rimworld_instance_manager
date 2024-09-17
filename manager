@@ -4,7 +4,7 @@ import os, click, humanize # type: ignore
 from InquirerPy import inquirer
 
 from datetime import datetime
-from sheet_manager import get_modlist_info, get_instances, get_slow_mods
+from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend
 from helpers import *
 import mod_handler, statter, rentry, sorter
 
@@ -16,7 +16,7 @@ def cli():
 
 @cli.command
 def modlist():
-    instance_name = promptInstanceName()    
+    instance_name = prompt_instance_name()    
 
     sheetGotten = False
     if click.confirm("Get modlist from sheet?"):
@@ -30,7 +30,7 @@ def modlist():
         if click.confirm("Set new sort order on sheet?"):
             mod_handler.load_sorder_to_sheet(instance_name)
 
-def promptInstanceName():
+def prompt_instance_name():
     instance_name = ""
     if os.path.exists(f"cached_instance_name"):
         if click.confirm("Use cached instance?"):
@@ -49,7 +49,7 @@ def promptInstanceName():
     return instance_name
 
 @cli.command("update")
-def updateMods():
+def cli_update():
     modd = statter.mod_metadata()
     toUpdate = []
 
@@ -70,7 +70,7 @@ def updateMods():
         print("No mods detected out of date.")
 
 @cli.command("stats")
-def getModStats():
+def cli_mods_stats():
     options = ["authors","subscribers","size","time","dependencies"]
 
     choice = inquirer.select(
@@ -176,8 +176,8 @@ def reentry_manager():
         url = click.prompt("Rentry Url?")
         print(rentry.import_rentry(url))
     elif choice == "Generate":
-        instance_name = promptInstanceName()
-        mods = mod_handler.getIdList(instance_name)
+        instance_name = prompt_instance_name()
+        mods = mod_handler.get_id_list(instance_name)
         ren = rentry.compile_rentry(mods,statter.mod_metadata())
         rentry.upload(ren)
     elif choice == "Check for Slow Mods":
@@ -189,20 +189,27 @@ def reentry_manager():
 
 @cli.command("encode")
 def encode():
-    mod_handler.ddsEncode("source_mods")
+    mod_handler.dds_encode("source_mods")
 
 @cli.command("modd")
 def modd():
     statter.mod_metadata()
 
-@cli.command
+@cli.command("sheet_push")
+def sheet_push():
+    instance_name = prompt_instance_name()
+    instance = mod_handler.get_id_list(instance_name)
+    modd = statter.mod_metadata() 
+    push_to_backend(modd,instance,instance_name)
+
+@cli.command("time")
 def whenlastupdated():
     time = click.prompt("Time to set (unix milis)")
-    mod_handler.setDownloadTime(statter.source_mods_list(steam_only=True),time)
+    mod_handler.set_download_time(statter.source_mods_list(steam_only=True),time)
 
 @cli.command("sort")
-def sort_modlist():
-    sorter.sorter(mod_handler.getIdList(promptInstanceName()))
+def cli_sort_modlist():
+    sorter.sorter(mod_handler.get_id_list(prompt_instance_name()))
 
 if __name__ == '__main__':
     cli()
