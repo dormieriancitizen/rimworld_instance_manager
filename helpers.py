@@ -11,6 +11,17 @@ def empty_folder(folder):
         except Exception as e:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
 
+def duplicate_check(tocheck):
+    nodupes = []
+    dupes = []
+    for check in tocheck:
+        if check not in nodupes:
+            nodupes.append(check)
+        else:
+            dupes.append(check)
+    check = nodupes
+    return nodupes, dupes
+
 def du(path):
     # Du in bytes
     return subprocess.check_output(['du','-sb', path]).split()[0].decode('utf-8')

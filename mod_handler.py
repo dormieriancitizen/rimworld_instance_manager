@@ -1,43 +1,63 @@
 import click, os, csv, time
 from helpers import *
+from collections import Counter
 
 import statter, sorter
 from sheet_manager import set_sorder
 
-def generateModList(instance):
+def generate_modlist(instance):
+    # Validate modlist
+    source_mods  = statter.source_mods_list()
     mods = getIdList(instance)
+    mods, dupes = duplicate_check(mods)
+    if dupes:
+        print("\n".join([f"Duplicate: {x}. Removed." for x in dupes]))
+
+    modd = statter.mod_metadata(prune_by=mods)
+
+    missing_mod_list = []
+    for mod in mods:
+        if mod not in source_mods:
+            if mod.isnumeric():
+                missing_mod_list.append(mod)
+            else:
+                print(f"Missing mod {mod}, but is not a steam mod")
+
+    if missing_mod_list:
+        if click.confirm("Missing mods detected. Download?"):
+            print(missing_mod_list)
+            modd = downloadMods(missing_mod_list,regen_mods=True)
+
+    dupes = []
+    
+    pids, dupes = duplicate_check([modd[d]["pid"] for d in modd])
+
+    if dupes:
+        print("\n".join([f"Duplicate PID! {x}" for x in dupes]))
+        print("Please fix!")
+        return    
+
+    link_modlist(mods)
+
+    print("Sorting mods")
+    sorter.sorter(getIdList(instance))
+
+def link_modlist(mods):
 
     print("Clearing active mod folder")
     empty_folder("active/mods")
     source_mods  = statter.source_mods_list()
-    # print(source_mods)
-
-    missing_mod_list = []
-
-    for mod in mods:
-        if mod in source_mods:
-            continue
-        else:
-            print(f"Missing Mod: {mod}")
-            missing_mod_list.append(mod)
     
-    if missing_mod_list:
-        if click.confirm("Missing mods detected. Try to download?"):
-            downloadMods(missing_mod_list)
-        generateModList(instance)
-    else:
-        for mod in mods:
-            try:
-                if mod in source_mods:
-                    os.symlink(os.path.abspath(f"source_mods/{mod}"),f"active/mods/{mod}")
-                else:
-                    print(f"Missing Mod. Download failed?: {mod}")
-            except FileExistsError:
-                print(f"Duplicate Mod: {mod}")
-        print("Sorting mods")
-        sorter.sorter(getIdList(instance))
+    for mod in mods:
+        try:
+            if mod in source_mods:
+                os.symlink(os.path.abspath(f"source_mods/{mod}"),f"active/mods/{mod}")
+            else:
+                print(f"Missing Mod. Download failed?: {mod}")
+        except FileExistsError:
+            print(f"Duplicate Mod: {mod}. This should never happen!")
 
-def downloadMods(mods):
+def downloadMods(mods,regen_mods=False):
     # Pass list of ids
     os.system(f"/home/dormierian/Games/rimworld/SteamCMD/steamcmd.sh +logon anonymous +workshop_download_item 294100 {" +workshop_download_item 294100 ".join(mods)} +exit")
     setDownloadTime(mods)
@@ -57,6 +77,10 @@ def downloadMods(mods):
 
     if click.confirm("\nDDS-encode downloaded mods?"):
         ddsEncode("active/fresh")
+
+    # Regenerate the metadata and return the fresh list
+    if regen_mods:
+        return statter.partial_metadata_regen(mods)
     
 
 def setDownloadTime(mods, write_time=None):

@@ -24,7 +24,7 @@ def modlist():
         with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
             instance_csv.write(get_modlist_info(instance_name))
 
-    mod_handler.generateModList(instance_name)
+    mod_handler.generate_modlist(instance_name)
 
     if sheetGotten:
         if click.confirm("Set new sort order on sheet?"):

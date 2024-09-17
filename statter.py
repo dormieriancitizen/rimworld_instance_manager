@@ -9,13 +9,13 @@ def source_mods_list(steam_only=None):
         source_mods = [f for f in source_mods if f.isnumeric()]
     return source_mods
 
-def loadModInfo():
-    if click.confirm("Get new mod info?"):
+def loadModInfo(fetch=False,mods=None):
+    if fetch or click.confirm("Get new mod info?"):
         print("Getting info")
 
         # Read from the steam API and write to file
-
-        source_mods = source_mods_list(steam_only=True)
+        if not mods:
+            mods = source_mods_list(steam_only=True)
 
         url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
         
@@ -25,9 +25,9 @@ def loadModInfo():
         # # Construct the final URL
         # url = f"https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/?itemcount={len(source_mods)}&{publishedfileids}"
 
-        payload = {"itemcount": len(source_mods)}
-        for i in range(len(source_mods)):
-            payload[f"publishedfileids[{i}]"] = source_mods[i]
+        payload = {"itemcount": len(mods)}
+        for i in range(len(mods)):
+            payload[f"publishedfileids[{i}]"] = mods[i]
 
         response = requests.post(url, data=payload)
         
@@ -65,13 +65,16 @@ def load_sort_order(mods):
 
     return ordered_ids
 
+def load_mod_metadata():
+    with open("data/modd.json","r") as f:
+        return json.load(f)  
+
 def mod_metadata(sort_by = None, index_by = None, prune_by = None):
     if click.confirm("Generate new metadata?"):
         modd = gen_mod_metadata()
     else:
-        modd = {}
-        with open("data/modd.json","r") as f:
-            modd = json.load(f)    
+        modd = load_mod_metadata()
+  
     if prune_by:
         modd = {e: modd[e] for e in modd if e in prune_by}
     if sort_by:
@@ -80,9 +83,90 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = None):
         modd = {modd[e][index_by]:modd[e] for e in modd}
     return modd
 
+def individual_mod(mod,steam_mods,sort_order,abouts):
+    d = {}
+
+    d["id"] = mod
+    d["pid"] = abouts[mod]["packageId"].lower()
+
+    if d["pid"].startswith("ludeon."):
+        d["source"] = "LUDEON"
+    elif mod in steam_mods:
+        d["source"] = "STEAM"
+    else:
+        d["source"] = "LOCAL"
+    
+    d["name"] = abouts[mod]["name"] if "name" in abouts[mod] else d["pid"]
+    d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else None
+    d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else None
+    d["sort"] = sort_order[mod] if mod in sort_order else 1000000000000000
+
+    deps = []
+    if "modDependencies" in abouts[mod]:
+        if abouts[mod]["modDependencies"]:
+            if abouts[mod]["modDependencies"]["li"]:
+                deps = abouts[mod]["modDependencies"]["li"]
+                deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
+                deps = [dep["packageId"].lower() for dep in deps]
+            else:
+                deps = []
+    else:
+        deps = []
+    d["deps"] = deps
+
+    deps = []
+    if "loadBefore" in abouts[mod]:
+        if abouts[mod]["loadBefore"]:
+            if abouts[mod]["loadBefore"]["li"]:
+                deps = abouts[mod]["loadBefore"]["li"]
+                deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
+                deps = [dep.lower() for dep in deps]
+            else:
+                deps = []
+    else:
+        deps = []
+    d["loadBefore"] = deps
+
+    deps = []
+    if "loadAfter" in abouts[mod]:
+        if abouts[mod]["loadAfter"]:
+            if abouts[mod]["loadAfter"]["li"]:
+                deps = abouts[mod]["loadAfter"]["li"]
+                deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
+                deps = [dep.lower() for dep in deps]
+            else:
+                deps = []
+    else:
+        deps = []
+    d["loadAfter"] = deps
+
+    if d["source"] == "STEAM":
+        d["download_link"] = "https://steamcommunity.com/workshop/filedetails/?id="+mod
+        d["size"] = steam_mods[mod]["file_size"] if "file_size" in steam_mods[mod] else du("source_mods/"+mod)
+        d["subs"] = str(steam_mods[mod]["lifetime_subscriptions"]) if "lifetime_subscriptions" in steam_mods[mod] else "0"
+        d["pfid"] = f"{steam_mods[mod]["preview_url"]}?imw=100&imh=100&impolicy=Letterbox" if "preview_url" in steam_mods[mod] else "https://github.com/RimSort/RimSort/blob/main/docs/rentry_steam_icon.png?raw=true"
+
+        d["time_created"] = str(steam_mods[mod]["time_created"]) if "time_created" in steam_mods[mod] else "0"
+        d["time_updated"] = str(steam_mods[mod]["time_updated"]) if "time_updated" in steam_mods[mod] else "0"
+        with open(f"source_mods/{mod}/timeDownloaded","r") as f:
+            d["time_downloaded"] = f.readlines()[0]
+
+    else:
+        d["download_link"] = d["url"] if d["url"] else ""
+        d["size"] = du("source_mods/"+mod)
+        d["subs"] = "0"
+        d["pfid"] = "0"
+
+        d["time_created"] = "0"
+        d["time_updated"] = "0"
+        d["time_downloaded"] = "0"
+    
+    return d
+
 def gen_mod_metadata():
     steamd = loadModInfo()
 
+    # Don't include time to fetch mod info
     start_time = time.time()
 
     mods = source_mods_list()
@@ -94,7 +178,6 @@ def gen_mod_metadata():
 
     for mod in mods:
         about = mod_parser.mod_about(mod)
-
         if "ModMetaData" in about:
             abouts[mod] = about["ModMetaData"]
         elif "ModMetadata" in about:
@@ -106,91 +189,43 @@ def gen_mod_metadata():
     count = 0
     for mod in mods:
         count += 1
-
-        d = {}
-
-        d["id"] = mod
-        d["pid"] = abouts[mod]["packageId"].lower()
-
-        if d["pid"].startswith("ludeon."):
-            d["source"] = "LUDEON"
-        elif mod in steam_mods:
-            d["source"] = "STEAM"
-        else:
-            d["source"] = "LOCAL"
-        
-        d["name"] = abouts[mod]["name"]
-        d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else None
-        d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else None
-        d["sort"] = sort_order[mod] if mod in sort_order else 1000000000000000
-
-        if "modDependencies" in abouts[mod]:
-            if abouts[mod]["modDependencies"]:
-                if abouts[mod]["modDependencies"]["li"]:
-                    deps = abouts[mod]["modDependencies"]["li"]
-                    deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
-                    deps = [dep["packageId"].lower() for dep in deps]
-                else:
-                    deps = []
-            else:
-                deps = []
-        d["deps"] = deps
-
-        deps = []
-        if "loadBefore" in abouts[mod]:
-            if abouts[mod]["loadBefore"]:
-                if abouts[mod]["loadBefore"]["li"]:
-                    deps = abouts[mod]["loadBefore"]["li"]
-                    deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
-                    deps = [dep.lower() for dep in deps]
-                else:
-                    deps = []
-            else:
-                deps = []
-        d["loadBefore"] = deps
-
-        deps = []
-        if "loadAfter" in abouts[mod]:
-            if abouts[mod]["loadAfter"]:
-                if abouts[mod]["loadAfter"]["li"]:
-                    deps = abouts[mod]["loadAfter"]["li"]
-                    deps = [deps] if isinstance(deps,dict) or isinstance(deps,str) else deps
-                    deps = [dep.lower() for dep in deps]
-                else:
-                    deps = []
-            else:
-                deps = []
-        d["loadAfter"] = deps
-
-        if d["source"] == "STEAM":
-            d["download_link"] = "https://steamcommunity.com/workshop/filedetails/?id="+mod
-            d["size"] = steam_mods[mod]["file_size"] if "file_size" in steam_mods[mod] else du("source_mods/"+mod)
-            d["subs"] = str(steam_mods[mod]["lifetime_subscriptions"]) if "lifetime_subscriptions" in steam_mods[mod] else "0"
-            d["pfid"] = f"{steam_mods[mod]["preview_url"]}?imw=100&imh=100&impolicy=Letterbox" if "preview_url" in steam_mods[mod] else "https://github.com/RimSort/RimSort/blob/main/docs/rentry_steam_icon.png?raw=true"
-
-            d["time_created"] = str(steam_mods[mod]["time_created"]) if "time_created" in steam_mods[mod] else "0"
-            d["time_updated"] = str(steam_mods[mod]["time_updated"]) if "time_updated" in steam_mods[mod] else "0"
-            with open(f"source_mods/{mod}/timeDownloaded","r") as f:
-                d["time_downloaded"] = f.readlines()[0]
-
-        else:
-            d["download_link"] = d["url"] if d["url"] else ""
-            d["size"] = du("source_mods/"+mod)
-            d["subs"] = "0"
-            d["pfid"] = "0"
-
-            d["time_created"] = "0"
-            d["time_updated"] = "0"
-            d["time_downloaded"] = "0"
-
-        modd[mod] = d
+        modd[mod] = individual_mod(mod,steam_mods,sort_order,abouts)
 
     with open("data/modd.json","w") as f:
         json.dump(modd,f)
     
-    print(f"{Style.DIM}Generated mod metadata in {time.time()-start_time}{Style.RESET_ALL}")
-
+    print(f"{Style.DIM}Generated metadata for {count} mods in {time.time()-start_time}{Style.RESET_ALL}")
     return modd
+
+def partial_metadata_regen(mods):
+    start_time = time.time()
+
+    modd = load_mod_metadata()
+
+    steamd = loadModInfo(fetch=True,mods=mods)
+    steam_mods = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
+    sort_order = load_sort_order(mods)
+
+    abouts = {}
+    for mod in mods:
+        about = mod_parser.mod_about(mod)
+        if "ModMetaData" in about:
+            abouts[mod] = about["ModMetaData"]
+        elif "ModMetadata" in about:
+            abouts[mod] = about["ModMetadata"]
+        else:
+            abouts[mod] = None
+
+    for mod in mods:
+        count += 1
+        modd[mod] = individual_mod(mod,steam_mods,sort_order,abouts)
+
+    with open("data/modd.json","w") as f:
+        json.dump(modd,f)  
+    
+    print(f"{Style.DIM}Generated partial metadata for {count} mods in {time.time()-start_time}{Style.RESET_ALL}")
+    return modd
+
 
 def instance_metadata(modlist):
     modd = mod_metadata(prune_by=modlist,index_by="pid")
