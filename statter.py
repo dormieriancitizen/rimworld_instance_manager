@@ -69,11 +69,11 @@ def load_mod_metadata():
     with open("data/modd.json","r") as f:
         return json.load(f)  
 
-def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=False, steam_fetch = None):
-    if fetch or click.confirm("Generate new metadata?"):
-        if steam_fetch:
-            modd = gen_mod_metadata(steam_fetch=steam_fetch)
-        else:    
+def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None):
+    if fetch == None:
+        fetch = click.confirm("Generate new metadata?")
+    
+    if fetch:
             modd = gen_mod_metadata()
     else:
         modd = load_mod_metadata()
@@ -81,7 +81,7 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=False, 
     if prune_by:
         modd = {e: modd[e] for e in modd if e in prune_by}
     if sort_by:
-        modd = dict(sorted(modd.items(), key=lambda item: int(item[1][sort_by])))
+        modd = dict(sorted(modd.items(), key=lambda item: float(item[1][sort_by])))
     if index_by:
         modd = {modd[e][index_by]:modd[e] for e in modd}
     return modd
@@ -170,11 +170,8 @@ def individual_mod(mod,steam_mods,sort_order,abouts):
     
     return d
 
-def gen_mod_metadata(fetch=None):
-    if fetch:
-        steamd = fetch_mod_info()
-    else:
-        steamd = fetch_mod_info(fetch=True)
+def gen_mod_metadata():
+    steamd = fetch_mod_info()
 
     # Don't include time to fetch mod info
     start_time = time.time()
@@ -236,9 +233,9 @@ def partial_metadata_regen(mods):
     print(f"{Style.DIM}Generated partial metadata for {count} mods in {time.time()-start_time}{Style.RESET_ALL}")
     return modd
 
-
 def instance_metadata(modlist):
     modd = mod_metadata(prune_by=modlist,index_by="pid",fetch=False)
+
     comun_rules = fetch_rimsort_community_rules()["rules"]
     comun_rules = {x: comun_rules[x] for x in comun_rules if x in modd}
 

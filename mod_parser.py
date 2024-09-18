@@ -7,9 +7,16 @@ def mod_about(mod):
                 return xmltodict.parse(aboutxml, dict_constructor=dict)
             except xmltodict.xml.parsers.expat.ExpatError:
                 return {}
-    except FileNotFoundError:
-        print(f"Unknown mod: "+mod)
-        return mod
+    except FileNotFoundError as error:
+        try:
+            with open(f"source_mods/{mod}/About/about.xml","rb") as aboutxml:
+                try:
+                    return xmltodict.parse(aboutxml, dict_constructor=dict)
+                except xmltodict.xml.parsers.expat.ExpatError:
+                    return {}
+        except FileNotFoundError as error:
+            print(f"Unknown mod: "+mod)
+            return mod
     
 def get_mods_x(mods,x):
     abouts = {}

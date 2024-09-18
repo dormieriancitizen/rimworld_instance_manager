@@ -1,6 +1,6 @@
 #!/home/dormierian/Games/rimworld/instance_manager/bin/python
 
-import os, click, humanize # type: ignore
+import os, click, humanize, regex, csv
 from InquirerPy import inquirer
 
 from datetime import datetime
@@ -193,7 +193,7 @@ def modd():
 def sheet_push():
     instance_name = prompt_instance_name()
     instance = mod_handler.get_id_list(instance_name)
-    modd = statter.mod_metadata() 
+    modd = statter.mod_metadata(sort_by="time_downloaded") 
     push_to_backend(modd,instance,instance_name)
 
 @cli.command("time")
@@ -204,6 +204,53 @@ def whenlastupdated():
 @cli.command("sort")
 def cli_sort_modlist():
     sorter.sorter(mod_handler.get_id_list(prompt_instance_name()))
+
+@cli.command("add_mods")
+def cli_add_mods():
+    modd = statter.mod_metadata()
+    to_add = []
+    print("Write done to stop")
+    while True:
+        workshop = click.prompt("Steam Workshop URL?").lower()
+        if workshop == "done":
+            break
+        if workshop == "undo":
+            print(f"Removed workshop item {to_add[-1]}")
+            del to_add[-1]
+            continue
+        
+        id_match = regex.search(r"(?<=\?id=)([0-9]*)",workshop)
+        if id_match:
+            mod_id = id_match.group()
+        else:
+            print("Couldn't get id, try again")
+            continue
+
+        if mod_id in modd or mod_id in to_add:
+            print(f"Mod {mod_id} already downloaded")
+            continue
+        else:
+            print(f"Added mod {mod_id} to list")
+
+        to_add.append(mod_id)
+    modd = mod_handler.downloadMods(to_add, regen_mods=True)
+    print(modd)
+    if click.confirm("Add fresh mods to instance?"):
+        instance_name = prompt_instance_name()
+        with open(f"instances/{instance_name}/modlist.csv","r") as instance_csv:
+            reader = csv.reader(instance_csv)
+            for row in reader:
+                mods=row
+        mods.extend(to_add)
+        with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
+            instance_csv.write(",".join(mods))
+        push_to_backend(modd,mods,instance_name)
+    mods = []
+
+ 
+    
+    return mods
+
 
 if __name__ == '__main__':
     cli()
