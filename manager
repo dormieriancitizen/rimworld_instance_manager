@@ -18,17 +18,11 @@ def cli():
 def modlist():
     instance_name = prompt_instance_name()    
 
-    sheetGotten = False
     if click.confirm("Get modlist from sheet?"):
-        sheetGotten = True
         with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
             instance_csv.write(get_modlist_info(instance_name))
 
     mod_handler.generate_modlist(instance_name)
-
-    if sheetGotten:
-        if click.confirm("Set new sort order on sheet?"):
-            mod_handler.load_sorder_to_sheet(instance_name)
 
 def prompt_instance_name():
     instance_name = ""

@@ -39,7 +39,7 @@ def push_to_backend(modd, instance, instance_name):
             d["source"],
             d["download_link"],
             d["name"],
-            "1" if x in instance else "0",
+            1 if x in instance else 0,
         ]
         to_push.append(mod)
     sh = get_spreadsheet()

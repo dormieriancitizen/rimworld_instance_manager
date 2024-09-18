@@ -11,7 +11,7 @@ def generate_modlist(instance):
     if dupes:
         print("\n".join([f"Duplicate: {x}. Removed." for x in dupes]))
 
-    modd = statter.mod_metadata(prune_by=mods)
+    modd = statter.mod_metadata()
 
     missing_mod_list = []
     for mod in mods:
@@ -27,13 +27,28 @@ def generate_modlist(instance):
             modd = downloadMods(missing_mod_list,regen_mods=True)
 
     dupes = []
-    
-    pids, dupes = duplicate_check([modd[d]["pid"] for d in modd])
+    pruned_modd = {d: modd[d] for d in modd if d in mods}
+    pids, dupes = duplicate_check([pruned_modd[d]["pid"] for d in pruned_modd])
 
     if dupes:
         print("\n".join([f"Duplicate PID! {x}" for x in dupes]))
         print("Please fix!")
         return    
+
+    modd_by_pid = {modd[d]["pid"]: modd[d] for d in modd if d in mods}
+    all_modd_by_pid = {modd[d]["pid"]: modd[d] for d in modd}
+
+    for d in pruned_modd:
+        for dep in modd[d]["deps"]:
+            if dep.startswith("ludeon."):
+                continue
+            if not dep in modd_by_pid:
+                if dep in all_modd_by_pid:
+                    if all_modd_by_pid[dep]["id"] not in mods:
+                        print(f"{modd[d]["name"]} depends on {dep}, but is a known PID. Adding to modlist")
+                        mods.append(all_modd_by_pid[dep]["id"])
+                else:
+                    print(f"Missing unknown dependency {dep}")
 
     link_modlist(mods)
 

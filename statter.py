@@ -12,7 +12,6 @@ def source_mods_list(steam_only=None):
 def fetch_mod_info(fetch=False,mods=None):
     if fetch or click.confirm("Fetch new mod info?"):
         start_time = time.time()
-        print("Getting info")
 
         # Read from the steam API and write to file
         if not mods:
@@ -70,9 +69,12 @@ def load_mod_metadata():
     with open("data/modd.json","r") as f:
         return json.load(f)  
 
-def mod_metadata(sort_by = None, index_by = None, prune_by = None):
-    if click.confirm("Generate new metadata?"):
-        modd = gen_mod_metadata()
+def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=False, steam_fetch = None):
+    if fetch or click.confirm("Generate new metadata?"):
+        if steam_fetch:
+            modd = gen_mod_metadata(steam_fetch=steam_fetch)
+        else:    
+            modd = gen_mod_metadata()
     else:
         modd = load_mod_metadata()
   
@@ -88,7 +90,11 @@ def individual_mod(mod,steam_mods,sort_order,abouts):
     d = {}
 
     d["id"] = mod
-    d["pid"] = abouts[mod]["packageId"].lower()
+
+    if "packageId" in abouts[mod]:
+        d["pid"] = abouts[mod]["packageId"].lower()  
+    else:
+        raise Exception(f"Mod {mod} has no pid")
 
     if d["pid"].startswith("ludeon."):
         d["source"] = "LUDEON"
@@ -164,8 +170,11 @@ def individual_mod(mod,steam_mods,sort_order,abouts):
     
     return d
 
-def gen_mod_metadata():
-    steamd = fetch_mod_info()
+def gen_mod_metadata(fetch=None):
+    if fetch:
+        steamd = fetch_mod_info()
+    else:
+        steamd = fetch_mod_info(fetch=True)
 
     # Don't include time to fetch mod info
     start_time = time.time()
@@ -229,7 +238,7 @@ def partial_metadata_regen(mods):
 
 
 def instance_metadata(modlist):
-    modd = mod_metadata(prune_by=modlist,index_by="pid")
+    modd = mod_metadata(prune_by=modlist,index_by="pid",fetch=False)
     comun_rules = fetch_rimsort_community_rules()["rules"]
     comun_rules = {x: comun_rules[x] for x in comun_rules if x in modd}
 
