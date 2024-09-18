@@ -1,22 +1,24 @@
-import xmltodict
+import xmltodict, os
 
-def mod_about(mod):
+def mod_about(mod, path=None):
+    if not path:
+        if os.path.exists(f"source_mods/{mod}/About/About.xml"):
+            path = f"source_mods/{mod}/About/About.xml"
+        elif os.path.exists(f"source_mods/{mod}/About/about.xml"):
+            path = f"source_mods/{mod}/About/about.xml"
+    else:
+        if not os.path.exists(path):
+            raise Exception(f"Passed nonexistent path {path}")
+    
     try:
-        with open(f"source_mods/{mod}/About/About.xml","rb") as aboutxml:
+        with open(path,"rb") as aboutxml:
             try:
                 return xmltodict.parse(aboutxml, dict_constructor=dict)
             except xmltodict.xml.parsers.expat.ExpatError:
                 return {}
-    except FileNotFoundError as error:
-        try:
-            with open(f"source_mods/{mod}/About/about.xml","rb") as aboutxml:
-                try:
-                    return xmltodict.parse(aboutxml, dict_constructor=dict)
-                except xmltodict.xml.parsers.expat.ExpatError:
-                    return {}
-        except FileNotFoundError as error:
-            print(f"Unknown mod: "+mod)
-            return mod
+    except FileNotFoundError:
+        print(f"Unknown mod: "+mod)
+        raise Exception(f"Passed nonexistent path {path}")
     
 def get_mods_x(mods,x):
     abouts = {}

@@ -1,4 +1,4 @@
-import mod_parser, requests, json, click, os, xmltodict, time
+import mod_parser, requests, json, click, os, subprocess, time
 
 from helpers import du
 from colorama import Fore, Back, Style
@@ -43,33 +43,11 @@ def fetch_mod_info(fetch=False,mods=None):
 
     return modInfo
 
-def load_sort_order(mods):
-    sorder = {}
-    with open("/home/dormierian/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios/Config/ModsConfig.xml","rb") as ModsConfig:
-        sorder = xmltodict.parse(ModsConfig, dict_constructor=dict)
-    
-    sorder = sorder["ModsConfigData"]["activeMods"]["li"]
-
-    modids = mod_parser.get_mods_x(mods,"packageId")
-    modids = {v.lower(): k for k, v in modids.items()}
-
-    ordered_ids = {}
-
-    count = 0
-    for pid in sorder:
-        if pid.startswith("ludeon."):
-            print(Style.DIM + "Skipped pid "+pid + Style.RESET_ALL)
-            continue
-        count += 1
-        ordered_ids[modids[pid]] = count
-
-    return ordered_ids
-
 def load_mod_metadata():
     with open("data/modd.json","r") as f:
         return json.load(f)  
 
-def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None):
+def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,include_ludeon=False):
     if fetch == None:
         fetch = click.confirm("Generate new metadata?")
     
@@ -80,13 +58,19 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None):
   
     if prune_by:
         modd = {e: modd[e] for e in modd if e in prune_by}
+    if include_ludeon:
+        dlcs = ["Core","Biotech","Ideology","Royalty","Anomaly"]
+        abouts = {dlc: mod_parser.mod_about(dlc,path=f"/home/dormierian/Games/rimworld/Data/{dlc}/About/About.xml")["ModMetaData"] for dlc in dlcs}
+
+        for dlc in dlcs:
+            modd[dlc] = individual_mod(dlc,{},abouts)
     if sort_by:
         modd = dict(sorted(modd.items(), key=lambda item: float(item[1][sort_by])))
     if index_by:
         modd = {modd[e][index_by]:modd[e] for e in modd}
     return modd
 
-def individual_mod(mod,steam_mods,sort_order,abouts):
+def individual_mod(mod,steam_mods,abouts):
     d = {}
 
     d["id"] = mod
@@ -106,7 +90,6 @@ def individual_mod(mod,steam_mods,sort_order,abouts):
     d["name"] = abouts[mod]["name"] if "name" in abouts[mod] else d["pid"]
     d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else None
     d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else None
-    d["sort"] = sort_order[mod] if mod in sort_order else 1000000000000000
 
     deps = []
     if "modDependencies" in abouts[mod]:
@@ -157,10 +140,17 @@ def individual_mod(mod,steam_mods,sort_order,abouts):
         d["time_updated"] = str(steam_mods[mod]["time_updated"]) if "time_updated" in steam_mods[mod] else "0"
         with open(f"source_mods/{mod}/timeDownloaded","r") as f:
             d["time_downloaded"] = f.readlines()[0]
-
     else:
         d["download_link"] = d["url"] if d["url"] else ""
-        d["size"] = du("source_mods/"+mod)
+
+        if d['source'] == "LOCAL":
+            d["size"] = du("source_mods/"+mod)
+        elif d['source'] == "LUDEON":
+            d["size"] = "0"
+            d["name"] = mod
+        else:
+            raise Exception("Mod missing a source")
+       
         d["subs"] = "0"
         d["pfid"] = "0"
 
@@ -179,8 +169,6 @@ def gen_mod_metadata():
     mods = source_mods_list()
     steam_mods = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
     
-    sort_order = load_sort_order(mods)
-
     abouts = {}
 
     for mod in mods:
@@ -196,7 +184,7 @@ def gen_mod_metadata():
     count = 0
     for mod in mods:
         count += 1
-        modd[mod] = individual_mod(mod,steam_mods,sort_order,abouts)
+        modd[mod] = individual_mod(mod,steam_mods,abouts)
 
     with open("data/modd.json","w") as f:
         json.dump(modd,f)
@@ -211,7 +199,6 @@ def partial_metadata_regen(mods):
 
     steamd = fetch_mod_info(fetch=True,mods=mods)
     steam_mods = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
-    sort_order = load_sort_order(mods)
 
     abouts = {}
     for mod in mods:
@@ -225,7 +212,7 @@ def partial_metadata_regen(mods):
 
     for mod in mods:
         count += 1
-        modd[mod] = individual_mod(mod,steam_mods,sort_order,abouts)
+        modd[mod] = individual_mod(mod,steam_mods,abouts)
 
     with open("data/modd.json","w") as f:
         json.dump(modd,f)  
@@ -234,7 +221,7 @@ def partial_metadata_regen(mods):
     return modd
 
 def instance_metadata(modlist):
-    modd = mod_metadata(prune_by=modlist,index_by="pid",fetch=False)
+    modd = mod_metadata(prune_by=modlist,index_by="pid",fetch=False,include_ludeon=True)
 
     comun_rules = fetch_rimsort_community_rules()["rules"]
     comun_rules = {x: comun_rules[x] for x in comun_rules if x in modd}
@@ -251,6 +238,6 @@ def instance_metadata(modlist):
     return modd
 
 def fetch_rimsort_community_rules():
-    os.system("git -C data/rs_rules pull")
+    subprocess.Popen("git -C data/rs_rules pull",shell=True,stdout=subprocess.DEVNULL).wait()
     with open("data/rs_rules/communityRules.json", "r") as f:
         return json.load(f)

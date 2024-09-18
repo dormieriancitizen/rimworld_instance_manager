@@ -104,7 +104,7 @@ def cli_mods_stats():
         print("\n".join([modd[mod]["name"] for mod in authors[author]]))
 
     elif choice == "dependencies":
-        modd = statter.mod_metadata()
+        modd = statter.mod_metadata(include_ludeon=True)
         deps = {}
 
         for d in modd:
@@ -172,7 +172,15 @@ def reentry_manager():
     elif choice == "Generate":
         instance_name = prompt_instance_name()
         mods = mod_handler.get_id_list(instance_name)
-        ren = rentry.compile_rentry(mods,statter.mod_metadata())
+        modd = statter.mod_metadata(prune_by=mods,index_by="pid",include_ludeon=True)
+        
+        i = 0
+        for mod in sorter.sorter(mods):
+            i+=1
+            modd[mod]["sort"] = i
+
+        ren = rentry.compile_rentry(modd)
+
         rentry.upload(ren)
     elif choice == "Check for Slow Mods":
         url = click.prompt("Rentry Url?")
@@ -246,11 +254,12 @@ def cli_add_mods():
             instance_csv.write(",".join(mods))
         push_to_backend(modd,mods,instance_name)
     mods = []
-
- 
     
     return mods
 
+def cli_make_instance():
+    instance_name = click.prompt("What do you want to name the instance?")
+    
 
 if __name__ == '__main__':
     cli()

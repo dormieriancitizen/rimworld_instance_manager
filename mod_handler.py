@@ -1,15 +1,38 @@
-import click, os, csv, time
+import click, os, csv, time, subprocess
 from helpers import *
 
+from pathlib import Path
 import statter, sorter
 
 def generate_modlist(instance):
+    def remove_duplicate_ids(mods):
+        mods, dupes = duplicate_check(mods)
+        if dupes:
+            print("\n".join([f"Duplicate: {x}. Removed." for x in dupes]))
+        return mods
+
+    def check_deps():
+        nonlocal modd, mods
+
+        modd_by_pid = {modd[d]["pid"]: modd[d] for d in modd if d in mods}
+        all_modd_by_pid = {modd[d]["pid"]: modd[d] for d in modd}
+
+        for d in pruned_modd:
+            for dep in modd[d]["deps"]:
+                if dep.startswith("ludeon."):
+                    continue
+                if not dep in modd_by_pid:
+                    if dep in all_modd_by_pid:
+                        if all_modd_by_pid[dep]["id"] not in mods:
+                            print(f"{modd[d]["name"]} depends on {dep}, but is a known PID. Adding to modlist")
+                            mods.append(all_modd_by_pid[dep]["id"])
+                    else:
+                        print(f"Missing unknown dependency {dep}")
+        return mods
+
     # Validate modlist
     source_mods  = statter.source_mods_list()
-    mods = get_id_list(instance)
-    mods, dupes = duplicate_check(mods)
-    if dupes:
-        print("\n".join([f"Duplicate: {x}. Removed." for x in dupes]))
+    mods = remove_duplicate_ids(get_id_list(instance))
 
     modd = statter.mod_metadata()
 
@@ -35,25 +58,16 @@ def generate_modlist(instance):
         print("Please fix!")
         return    
 
-    modd_by_pid = {modd[d]["pid"]: modd[d] for d in modd if d in mods}
-    all_modd_by_pid = {modd[d]["pid"]: modd[d] for d in modd}
+    check_deps()
 
-    for d in pruned_modd:
-        for dep in modd[d]["deps"]:
-            if dep.startswith("ludeon."):
-                continue
-            if not dep in modd_by_pid:
-                if dep in all_modd_by_pid:
-                    if all_modd_by_pid[dep]["id"] not in mods:
-                        print(f"{modd[d]["name"]} depends on {dep}, but is a known PID. Adding to modlist")
-                        mods.append(all_modd_by_pid[dep]["id"])
-                else:
-                    print(f"Missing unknown dependency {dep}")
-
+    print(f"Modlist Length: {len(mods)}")
     link_modlist(mods)
 
     print("Sorting mods")
-    sorter.sorter(get_id_list(instance))
+    order = sorter.sorter(mods)
+
+    with open(Path.home() / ".config" /"unity3d" / "Ludeon Studios"/"RimWorld by Ludeon Studios"/"Config"/"ModConfig.xml","w") as f:
+        f.write(sorter.generate_modconfig_file(order))
 
 def link_modlist(mods):
 
@@ -99,7 +113,7 @@ def set_download_time(mods, write_time=None):
             dateFile.write(write_time)
 
 def dds_encode(path):
-    os.system(f"./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p {path}")
+    subprocess.Popen(f"./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p {path}",shell=True).wait()
 
 def get_id_list(instance):
     mods = []

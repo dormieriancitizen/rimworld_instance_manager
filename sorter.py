@@ -1,5 +1,4 @@
 import statter
-from pathlib import Path
 
 def find_circular_dependencies(nodes):
     def dfs(node, visited, rec_stack, path, cycles):
@@ -94,32 +93,6 @@ def topological_sort(nodes,modd):
 def sorter(modlist):
     modd = statter.instance_metadata(modlist)
 
-    modd["ludeon.rimworld"] = {
-        "loadBefore":[],
-        "loadAfter":[],
-        "deps":[],
-    }
-    modd["ludeon.rimworld.royalty"] = {
-        "loadBefore":[],
-        "loadAfter":["ludeon.rimworld"],
-        "deps":[],
-    }
-    modd["ludeon.rimworld.ideology"] = {
-        "loadBefore":[],
-        "loadAfter":["ludeon.rimworld.royalty"],
-        "deps":[],
-    }
-    modd["ludeon.rimworld.biotech"] = {
-        "loadBefore":[],
-        "loadAfter":["ludeon.rimworld.royalty","ludeon.rimworld.ideology"],
-        "deps":[],
-    }
-    modd["ludeon.rimworld.anomaly"] = {
-        "loadBefore":[],
-        "loadAfter":["ludeon.rimworld.royalty","ludeon.rimworld.ideology","ludeon.rimworld.biotech"],
-        "deps":[],
-    }
-
     # Convert all loadAfter into loadBefore
     for d in modd:
         if not "orderAfter" in modd[d]: 
@@ -141,8 +114,7 @@ def sorter(modlist):
 
     order = topological_sort(deplist,modd)
 
-    with open(Path.home() / ".config" /"unity3d" / "Ludeon Studios"/"RimWorld by Ludeon Studios"/"Config"/"ModConfig.xml","w") as f:
-        f.write(generate_modconfig_file(order))
+    return order
 
 
 def generate_modconfig_file(order):

@@ -11,10 +11,7 @@ def import_rentry(rentry_url):
 
     return mods
 
-def compile_rentry(mods,modd):
-
-    modd = {mod: modd[mod] for mod in modd if mod in mods}
-
+def compile_rentry(modd):
     keys = list(modd.keys())
     vals = list(modd.values())
 
@@ -26,9 +23,8 @@ def compile_rentry(mods,modd):
         "# RimWorld mod list       ![](https://github.com/RimSort/RimSort/blob/main/docs/rentry_preview.png?raw=true)"
         + f"\nCreated with a bad python script I wrote with a lot of code from RimSort"
         + f"\nMod list was created for game version: 1.5"
-        + f"\nCore and DLCs are missing because I can't be bothered to fix my code, but all DLCs are in this list"
         + "\n!!! info Local mods are marked as yellow labels with packageid in brackets."
-        + f"\n\n\n\n!!! note Mod list length: `{len(mods)}`\n"
+        + f"\n\n\n\n!!! note Mod list length: `{len(modd)}`\n"
     )
 
     count = 0
