@@ -88,8 +88,8 @@ def individual_mod(mod,steam_mods,abouts):
         d["source"] = "LOCAL"
     
     d["name"] = abouts[mod]["name"] if "name" in abouts[mod] else d["pid"]
-    d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else None
-    d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else None
+    d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else ""
+    d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else ""
 
     deps = []
     if "modDependencies" in abouts[mod]:

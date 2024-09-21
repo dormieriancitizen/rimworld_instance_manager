@@ -168,7 +168,12 @@ def reentry_manager():
 
     if choice == "Load":
         url = click.prompt("Rentry Url?")
-        print(rentry.import_rentry(url))
+        ren = rentry.import_rentry(url)
+
+        modd = statter.mod_metadata(index_by="pid",include_ludeon=True)
+        print(ren)
+        notin = [x for x in ren if x not in modd]
+        print("\n Missing Mod: ".join(notin))
     elif choice == "Generate":
         instance_name = prompt_instance_name()
         mods = mod_handler.get_id_list(instance_name)

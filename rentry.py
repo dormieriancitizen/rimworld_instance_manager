@@ -7,7 +7,8 @@ def import_rentry(rentry_url):
     r = requests.get(rentry_url)
 
     modlist = regex.search(r"<article>[\s\S]*</article>",r.text).group()
-    mods = regex.findall(r"""(?<=<a [^>]*>)[^<]+(?=</a>)|(?<=<p class="admonition-title">[0-9]*\. )[^<]+(?= {)""",modlist)
+    mods = regex.findall(r"(?i){packageid:\s*([\w.]+)\}|packageid:\s*([\w.]+)",modlist)
+    mods = [mod[0] for mod in mods]
 
     return mods
 
