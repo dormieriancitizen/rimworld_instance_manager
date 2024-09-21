@@ -66,7 +66,7 @@ def generate_modlist(instance):
     print("Sorting mods")
     order = sorter.sorter(mods)
 
-    with open(Path.home() / ".config" /"unity3d" / "Ludeon Studios"/"RimWorld by Ludeon Studios"/"Config"/"ModConfig.xml","w") as f:
+    with open(Path.home() / ".config" /"unity3d" / "Ludeon Studios" / "RimWorld by Ludeon Studios" / "Config" / "ModsConfig.xml","w") as f:
         f.write(sorter.generate_modconfig_file(order))
 
 def link_modlist(mods):

@@ -138,8 +138,13 @@ def individual_mod(mod,steam_mods,abouts):
 
         d["time_created"] = str(steam_mods[mod]["time_created"]) if "time_created" in steam_mods[mod] else "0"
         d["time_updated"] = str(steam_mods[mod]["time_updated"]) if "time_updated" in steam_mods[mod] else "0"
-        with open(f"source_mods/{mod}/timeDownloaded","r") as f:
-            d["time_downloaded"] = f.readlines()[0]
+        if os.path.isfile(f"source_mods/{mod}/timeDownloaded"):
+            with open(f"source_mods/{mod}/timeDownloaded","r") as f:
+                d["time_downloaded"] = f.readlines()[0]
+        else:
+            with open(f"source_mods/{mod}/timeDownloaded","w") as f:
+                f.write("0")
+            d["time_downloaded"] = "0"
     else:
         d["download_link"] = d["url"] if d["url"] else ""
 
@@ -210,6 +215,7 @@ def partial_metadata_regen(mods):
         else:
             abouts[mod] = None
 
+    count = 0 
     for mod in mods:
         count += 1
         modd[mod] = individual_mod(mod,steam_mods,abouts)

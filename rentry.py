@@ -1,14 +1,12 @@
 import regex, requests
 import numpy as np
 from rentryupload import RentryUpload
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 def import_rentry(rentry_url):
-    r = requests.get(rentry_url)
+    r = unquote(requests.get(rentry_url).text)
 
-    modlist = regex.search(r"<article>[\s\S]*</article>",r.text).group()
-    mods = regex.findall(r"(?i){packageid:\s*([\w.]+)\}|packageid:\s*([\w.]+)",modlist)
-    mods = [mod[0] for mod in mods]
+    mods = regex.findall(r'(?<=packageId:\s)(.*?)(?=\}|\")',r,flags=regex.IGNORECASE)
 
     return mods
 

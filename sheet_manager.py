@@ -28,6 +28,21 @@ def get_slow_mods():
     slow_mods.pop()
     return slow_mods
 
+def copy_instance_sheet(source,dest):
+    sh = get_spreadsheet()
+    worksheets = sh.worksheets()
+    worksheets = {sheet.title: sheet for sheet in worksheets}
+
+    if dest in worksheets:
+        return False
+    else:
+        if source in worksheets:
+            sh.duplicate_sheet(source_sheet_id=worksheets[source].id,new_sheet_name=dest)
+            return True
+        else:
+            raise Exception("Source sheet did not exist")
+
+
 def push_to_backend(modd, instance, instance_name):
     to_push = []
     to_push.append(["id","pid","source","download_link","name","On/Off"])
@@ -45,3 +60,4 @@ def push_to_backend(modd, instance, instance_name):
     sh = get_spreadsheet()
     ws = sh.worksheet(instance_name)
     ws.update(to_push,"A:F")
+
