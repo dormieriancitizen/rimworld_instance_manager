@@ -9,8 +9,12 @@ def source_mods_list(steam_only=None):
         source_mods = [f for f in source_mods if f.isnumeric()]
     return source_mods
 
-def fetch_mod_info(fetch=False,mods=None):
-    if fetch or click.confirm("Fetch new mod info?"):
+def fetch_mod_info(fetch=None,mods=None):
+    response = {}
+
+    if not fetch:
+        fetch = click.confirm("Fetch new mod info?")
+    if fetch:
         start_time = time.time()
 
         # Read from the steam API and write to file
@@ -29,19 +33,21 @@ def fetch_mod_info(fetch=False,mods=None):
         for i in range(len(mods)):
             payload[f"publishedfileids[{i}]"] = mods[i]
 
-        response = requests.post(url, data=payload)
+        response = requests.post(url, data=payload).json()
         
-        responseFile = open("data/response.json","w")
-        json.dump(response.json(), responseFile)
-        responseFile.close()
+        if not mods:
+            responseFile = open("data/response.json","w")
+            json.dump(response, responseFile)
+            responseFile.close()
 
         print(f"{Style.DIM}Fetched from steam in {time.time()-start_time}{Style.RESET_ALL}")
     
-    modInfo = {}
-    with open("data/response.json", "r") as f:
-        modInfo = json.load(f)
-
-    return modInfo
+    if response:
+        return response
+    else:
+        with open("data/response.json", "r") as f:
+            response = json.load(f)
+        return response
 
 def load_mod_metadata():
     with open("data/modd.json","r") as f:
@@ -145,6 +151,12 @@ def individual_mod(mod,steam_mods,abouts):
             with open(f"source_mods/{mod}/timeDownloaded","w") as f:
                 f.write("0")
             d["time_downloaded"] = "0"
+        if os.path.isfile(f"source_mods/{mod}/time_initially_downloaded"):
+            with open(f"source_mods/{mod}/time_initially_downloaded","r") as f:
+                d["time_first_downloaded"] = f.readlines()[0]
+        else:
+            print(f"Steam mod {d["name"]} has no inital download time")
+            d["time_first_downloaded"] = "0"
     else:
         d["download_link"] = d["url"] if d["url"] else ""
 
@@ -162,6 +174,7 @@ def individual_mod(mod,steam_mods,abouts):
         d["time_created"] = "0"
         d["time_updated"] = "0"
         d["time_downloaded"] = "0"
+        d["time_first_downloaded"] = "0"
     
     return d
 

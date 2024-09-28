@@ -1,14 +1,15 @@
 #!/home/dormierian/Games/rimworld/instance_manager/bin/python
 
-import os, click, humanize, regex, csv
+import os, click, humanize, regex, csv, time
 from InquirerPy import inquirer
+from colorama import Fore, Back, Style
 
 from datetime import datetime
 from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend, copy_instance_sheet
 from helpers import *
 import mod_handler, statter, rentry, sorter
 
-os.chdir(os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__))))
+os.chdir("/home/dormierian/Games/rimworld/instance_manager")
 
 @click.group
 def cli():
@@ -27,9 +28,10 @@ def modlist():
 def prompt_instance_name():
     instance_name = ""
     if os.path.exists(f"cached_instance_name"):
-        if click.confirm("Use cached instance?"):
-            with open(f"cached_instance_name","r") as instance_cache:
-                instance_name = instance_cache.readlines()[0]
+        with open(f"cached_instance_name","r") as instance_cache:
+                cached_instance_name = instance_cache.readlines()[0]
+        if click.confirm(f"Use cached instance {cached_instance_name}?"):
+            instance_name = cached_instance_name
             print(f"Using cached instance {instance_name}")
     if not instance_name:
         with open(f"cached_instance_name","w") as instance_cache:            
@@ -164,23 +166,23 @@ def reentry_manager():
             message="Get mods by",
             choices=options,
             pointer=">",
-        ).execute()
+        ).execute().lower()
 
-    if choice == "Load":
+    if choice == "load":
         url = click.prompt("Rentry Url?")
         ren = rentry.import_rentry(url)
 
         modd = statter.mod_metadata(index_by="pid",include_ludeon=True)
         notin = [x for x in ren if x not in modd]
         print("\n Missing Mod: ".join(notin))
-    elif choice == "Compare":
+    elif choice == "compare":
         url = click.prompt("Rentry Url?")
         ren = rentry.import_rentry(url)
 
         modd = statter.mod_metadata(index_by="pid",include_ludeon=True,prune_by=get_modlist_info(prompt_instance_name()))
         yesin = [modd[x]["name"] for x in ren if x in modd]
         print("\n".join(yesin))     
-    elif choice == "Generate":
+    elif choice == "generate":
         instance_name = prompt_instance_name()
         mods = mod_handler.get_id_list(instance_name)
         modd = statter.mod_metadata(prune_by=mods,index_by="pid",include_ludeon=True)
@@ -189,11 +191,15 @@ def reentry_manager():
         for mod in sorter.sorter(mods):
             i+=1
             modd[mod]["sort"] = i
-
+        start_time = time.time()
         ren = rentry.compile_rentry(modd)
+        print(f"{Style.DIM}Generated rentry for {i} mods in {time.time()-start_time}{Style.RESET_ALL}")
 
+        start_time = time.time()
         rentry.upload(ren)
-    elif choice == "Check for Slow Mods":
+        print(f"{Style.DIM}Uploaded in {time.time()-start_time}{Style.RESET_ALL}")
+
+    elif choice == "check for slow mods":
         url = click.prompt("Rentry Url?")
         modlist = rentry.import_rentry(url)
         slow_mods = get_slow_mods()
@@ -213,7 +219,7 @@ def sheet_push(instance_name=None):
     if not instance_name:
         instance_name = prompt_instance_name()
     instance = mod_handler.get_id_list(instance_name)
-    modd = statter.mod_metadata(sort_by="time_downloaded") 
+    modd = statter.mod_metadata(sort_by="time_first_downloaded") 
     push_to_backend(modd,instance,instance_name)
 
 @cli.command("time")
@@ -286,10 +292,7 @@ def cli_make_instance():
     os.mkdir("instances/"+instance_name)
 
     with open(f"instances/{instance_name}/modlist.csv","w") as f:
-        f.write(get_modlist_info(instance_name))
-
-    
-    
+        f.write(get_modlist_info(instance_name))   
 
 if __name__ == '__main__':
     cli()

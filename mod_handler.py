@@ -107,8 +107,9 @@ def set_download_time(mods, write_time=None):
         write_time = str(time.time() * 1000)
 
     for mod in mods:
-        if not os.path.exists(f"source_mods/{mod}/timeDownloaded"):
-            open(f"source_mods/{mod}/timeDownloaded","x")
+        if not os.path.exists(f"source_mods/{mod}/time_initially_downloaded"):
+            with open(f"source_mods/{mod}/time_initially_downloaded","w") as dateFile:
+                dateFile.write(write_time)
         with open(f"source_mods/{mod}/timeDownloaded",'w') as dateFile:
             dateFile.write(write_time)
 

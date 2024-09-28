@@ -33,8 +33,6 @@ def find_circular_dependencies(nodes):
     if cycles:
         for cycle in cycles:
             print(f"Circular dependency detected: {' -> '.join(cycle)}")
-    else:
-        print("No circular dependencies detected.")
 
 def topological_sort(nodes,modd):
     """
@@ -79,6 +77,8 @@ def topological_sort(nodes,modd):
 
     # check for circular dependencies
     if len(final_order) != len(nodes):
+        print("Found circular dependencies.")
+        find_circular_dependencies(nodes)
         raise Exception("Circular dependency found.")
     
     # Reverse the list since we have it in reverse order
@@ -105,12 +105,15 @@ def sorter(modlist):
                     modd[mod]["orderAfter"].append(d)
         if modd[d]["loadAfter"]:
             modd[d]["orderAfter"].extend([x for x in modd[d]["loadAfter"] if x in modd])
-        # if modd[d]["deps"]:
-        #     modd[d]["orderAfter"].extend([x for x in modd[d]["deps"] if x in modd])
+
+    for d in modd:
+        # If not otherwise specified, give every mod an orderAfter Core.
+        if d not in modd["ludeon.rimworld"]["orderAfter"]:
+            if "ludeon.rimworld" not in modd[d]["orderAfter"]:
+                if d != "ludeon.rimworld":
+                    modd[d]["orderAfter"].append("ludeon.rimworld")
     
     deplist = {x: modd[x]["orderAfter"] for x in modd}
-    
-    find_circular_dependencies(deplist)
 
     order = topological_sort(deplist,modd)
 
