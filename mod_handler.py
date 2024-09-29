@@ -2,7 +2,9 @@ import click, os, csv, time, subprocess
 from helpers import *
 
 from pathlib import Path
-import statter, sorter
+import sorter
+
+from statter import meta, fetch
 
 def generate_modlist(instance):
     def remove_duplicate_ids(mods):
@@ -31,10 +33,10 @@ def generate_modlist(instance):
         return mods
 
     # Validate modlist
-    source_mods  = statter.source_mods_list()
+    source_mods  = fetch.source_mods_list()
     mods = remove_duplicate_ids(get_id_list(instance))
 
-    modd = statter.mod_metadata()
+    modd = meta.mod_metadata()
 
     missing_mod_list = []
     for mod in mods:
@@ -73,7 +75,7 @@ def link_modlist(mods):
 
     print("Clearing active mod folder")
     empty_folder("active/mods")
-    source_mods  = statter.source_mods_list()
+    source_mods  = fetch.source_mods_list()
     
     for mod in mods:
         try:
@@ -100,7 +102,7 @@ def downloadMods(mods,regen_mods=False):
 
     # Regenerate the metadata and return the fresh list
     if regen_mods:
-        return statter.partial_metadata_regen(mods)
+        return meta.partial_metadata_regen(mods)
     
 
 def set_download_time(mods, write_time=None):
