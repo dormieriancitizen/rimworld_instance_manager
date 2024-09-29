@@ -1,4 +1,4 @@
-import click, os, csv, time, subprocess
+import click, os, csv, time, subprocess, regex
 from helpers import *
 
 from pathlib import Path
@@ -49,7 +49,7 @@ def generate_modlist(instance):
     if missing_mod_list:
         if click.confirm("Missing mods detected. Download?"):
             print(missing_mod_list)
-            modd = downloadMods(missing_mod_list,regen_mods=True)
+            modd = downloadMods(steam_mods=missing_mod_list,regen_mods=True)
 
     dupes = []
     pruned_modd = {d: modd[d] for d in modd if d in mods}
@@ -86,9 +86,37 @@ def link_modlist(mods):
         except FileExistsError:
             print(f"Duplicate Mod: {mod}. This should never happen!")
 
-def downloadMods(mods,regen_mods=False):
-    # Pass list of ids
-    os.system(f"/home/dormierian/Games/rimworld/SteamCMD/steamcmd.sh +logon anonymous +workshop_download_item 294100 {" +workshop_download_item 294100 ".join(mods)} +exit")
+def downloadMods(steam_mods=[],github_mods=[],regen_mods=False):
+    pattern = r"(?<=https://github.com/.*?/)(.*)(?=/)"
+    mods = [regex.search(pattern, url).group(1) if regex.search(pattern, url) else None for url in github_mods]
+    
+    mods += steam_mods
+    
+    dls = []
+
+    if steam_mods:
+        # Pass list of ids
+        command = [
+            "/home/dormierian/Games/rimworld/SteamCMD/steamcmd.sh",
+            "+logon", "anonymous",
+        ]
+
+        # Add each mod ID to the command
+        for mod in steam_mods:
+            command.extend(["+workshop_download_item", "294100", mod])
+
+        command.append("+exit")
+
+        # Execute the command
+        dls.append(subprocess.Popen(' '.join(command), shell=True))
+    
+    if github_mods:
+        for mod in github_mods:
+            command = " ".join(["git","-C", "source_mods/", "clone", mod])
+            dls.append(subprocess.Popen(command, shell=True))
+    
+    print([dl.wait() for dl in dls])
+
     set_download_time(mods)
 
     empty_folder("active/fresh/")
@@ -97,12 +125,14 @@ def downloadMods(mods,regen_mods=False):
         # Move fresh mods to a folder to perform operations on
 
     if click.confirm("\nDDS-encode downloaded mods?"):
+        encodes = []
         for mod in mods:
-            dds_encode(f"active/fresh/{mod}")
+            encodes.append(dds_encode(f"active/fresh/{mod}"))
+        print([encode.wait() for encode in encodes])
 
     # Regenerate the metadata and return the fresh list
     if regen_mods:
-        return meta.partial_metadata_regen(mods)
+        return meta.partial_metadata_regen(steam_mods)
     
 
 def set_download_time(mods, write_time=None):
@@ -117,7 +147,7 @@ def set_download_time(mods, write_time=None):
             dateFile.write(write_time)
 
 def dds_encode(path):
-    subprocess.Popen(f"./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p {path}",shell=True).wait()
+    return subprocess.Popen(f"./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p {path}",shell=True)
 
 def get_id_list(instance):
     mods = []

@@ -28,6 +28,8 @@ def individual_mod(mod,steam_mods,abouts):
         # Du in bytes
         return subprocess.check_output(['du','-sb', path.as_posix()]).split()[0].decode('utf-8')
 
+    mod_path = Path("source_mods") / mod
+
     d = {}
     d["id"] = mod
 
@@ -40,10 +42,11 @@ def individual_mod(mod,steam_mods,abouts):
         d["source"] = "LUDEON"
     elif mod in steam_mods:
         d["source"] = "STEAM"
+    elif (mod_path / ".git").is_dir():
+        d["source"] = "GIT"
     else:
         d["source"] = "LOCAL"
     
-    mod_path = Path("source_mods") / mod
 
     d["name"] = abouts[mod]["name"] if "name" in abouts[mod] else d["pid"]
     d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else ""
@@ -116,12 +119,13 @@ def individual_mod(mod,steam_mods,abouts):
         d["time_created"] = "0"
         d["time_updated"] = "0"
 
-        if d['source'] == "LOCAL":
-            # This is kind of slow, may change later.
-            d["size"] = du(mod_path)
-        elif d['source'] == "LUDEON":
+        if d['source'] == "LUDEON":
             d["size"] = "0"
             d["name"] = mod
+        else:
+            # This is kind of slow, may change later.
+            d["size"] = du(mod_path)
+ 
 
     gname = ""
     if VERSION not in d["supportedVersions"]:

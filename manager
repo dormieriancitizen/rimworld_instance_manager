@@ -56,21 +56,23 @@ def modlist():
 @cli.command("update")
 def cli_update():
     modd = meta.mod_metadata()
-    toUpdate = []
+    steam_update = []
 
     for mod in modd:
         if modd[mod]["source"] == "STEAM":
             timeDownloaded = modd[mod]["time_downloaded"]
             timeUpdated = modd[mod]["time_updated"]
             if timeDownloaded < timeUpdated:
-                toUpdate.append(mod)
+                print("\n".join([modd[mod]["graphical_name"] for mod in steam_update]))
+                steam_update.append(mod)
+        if modd[mod]["source"] == "GIT":
+            subprocess.Popen(f"git -C source_mods/{mod} pull",shell=True,stdout=subprocess.DEVNULL)
 
-    if toUpdate:
-        print(f"The following {len(toUpdate)} mods are out of date:")
-        print("\n".join([modd[mod]["graphical_name"] for mod in toUpdate]))
+    if steam_update:
+        print(f"{len(steam_update)} steam mods are out of date:")
 
         if click.confirm("Download them now?"):
-            mod_handler.downloadMods(toUpdate)
+            mod_handler.downloadMods(steam_mods=steam_update)
     else:
         print("No mods detected out of date.")
 
@@ -159,15 +161,25 @@ def cli_mods_stats(choice):
         modd = meta.mod_metadata(sort_by="time_created",fetch=False)
         print("".join([f"{modd[mod]["graphical_name"]} was made at {datetime.fromtimestamp(int(modd[mod]["time_created"])/1000).strftime('%Y-%m-%d %H:%M:%S')}\n" for mod in modd]))
 
+@click.argument("choice",nargs = -1)    
 @cli.command("rentry")
-def reentry_manager():
-    options = ["Generate","Load","Compare","Check for Slow Mods"]
+def reentry_manager(choice):
+    options = ["generate","load","compare","slow_mods"]
 
-    choice = inquirer.select(
-            message="Get mods by",
+    if len(choice) > 1:
+        print("Please pass 0 or 1 choice")
+        return
+    elif len(choice) == 0:
+        choice = inquirer.select(
+            message="Rentry",
             choices=options,
             pointer=">",
-        ).execute().lower()
+        ).execute()
+    else:
+        choice = choice[0]
+        if choice not in options:
+            print("Option not valid")
+            return
 
     if choice == "load":
         url = click.prompt("Rentry Url?")
@@ -235,32 +247,44 @@ def cli_sort_modlist():
 @cli.command("add_mods")
 def cli_add_mods():
     modd = meta.mod_metadata()
-    to_add = []
-    print("Write done to stop")
-    while True:
-        workshop = click.prompt("Steam Workshop URL?").lower()
-        if workshop == "done":
-            break
-        if workshop == "undo":
-            print(f"Removed workshop item {to_add[-1]}")
-            del to_add[-1]
-            continue
-        
-        id_match = regex.search(r"(?<=\?id=)([0-9]*)",workshop)
-        if id_match:
-            mod_id = id_match.group()
-        else:
-            print("Couldn't get id, try again")
-            continue
+    steam_mods = []
+    github_mods = []
 
-        if mod_id in modd or mod_id in to_add:
-            print(f"Mod {mod_id} already downloaded")
-            continue
-        else:
-            print(f"Added mod {mod_id} to list")
+    os.system("micro active/mods_to_add.txt")
 
-        to_add.append(mod_id)
-    modd = mod_handler.downloadMods(to_add, regen_mods=True)
+    with open("active/mods_to_add.txt", "r") as f:
+        for line in f:
+            if "steamcommunity.com" in line:
+                id_match = regex.search(r"(?<=\?id=)([0-9]*)",line)
+                if id_match:
+                    mod_id = id_match.group()
+                    if mod_id in modd or mod_id in steam_mods:
+                        print(f"{mod_id} already downloaded or in buffer")
+                        continue
+                    steam_mods.append(mod_id)
+                else:
+                    print("Couldn't get id, try again")
+                    continue
+            if "github.com" in line:
+                mod_id = regex.search(r"(?<=https://github.com/.*?/)(.*)(?=/)",line)
+
+                if mod_id:
+                    mod_id = mod_id.group()
+                else:
+                    print(f"Didn't match anything in {line}")
+                    continue
+
+                if mod_id in modd or mod_id in steam_mods:
+                        print(f"{mod_id} already downloaded or in buffer")
+
+                github_mods.append(line)
+
+    modd = mod_handler.downloadMods(steam_mods=steam_mods, github_mods=github_mods, regen_mods=True)
+
+    pattern = r"(?<=https://github.com/.*?/)(.*)(?=/)"
+    to_add = [regex.search(pattern, url).group(1) if regex.search(pattern, url) else None for url in github_mods]
+    
+    to_add += steam_mods
 
     if click.confirm("Add fresh mods to instance?"):
         instance_name = prompt_instance_name()

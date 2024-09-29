@@ -1,9 +1,32 @@
-from statter import mod_parser, fetch
-import json, click, time
+from statter import fetch
+import json, click, time, xmltodict, os
 
 from statter.individual_mod import individual_mod
 
 from colorama import Style, Fore, Back
+
+def mod_about(mod, path=None):
+    if path == None:
+        if os.path.exists(f"source_mods/{mod}/About/About.xml"):
+            path = f"source_mods/{mod}/About/About.xml"
+        elif os.path.exists(f"source_mods/{mod}/About/about.xml"):
+            path = f"source_mods/{mod}/About/about.xml"
+    else:
+        if not os.path.exists(path):
+            raise Exception(f"Passed nonexistent path {path}")
+    
+    try:
+        with open(path,"rb") as aboutxml:
+            try:
+                return xmltodict.parse(aboutxml, dict_constructor=dict)
+            except xmltodict.xml.parsers.expat.ExpatError:
+                return {}
+    except TypeError:
+        print(path,mod)
+        raise Exception("bugg")
+    except FileNotFoundError:
+        print(f"Unknown mod: "+mod)
+        raise Exception(f"Passed nonexistent path {path}")
 
 def load_mod_metadata():
     with open("data/modd.json","r") as f:
@@ -21,7 +44,7 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,in
         modd = {e: modd[e] for e in modd if e in prune_by}
     if include_ludeon:
         dlcs = ["Core","Biotech","Ideology","Royalty","Anomaly"]
-        abouts = {dlc: mod_parser.mod_about(dlc,path=f"/home/dormierian/Games/rimworld/Data/{dlc}/About/About.xml")["ModMetaData"] for dlc in dlcs}
+        abouts = {dlc: mod_about(dlc,path=f"/home/dormierian/Games/rimworld/Data/{dlc}/About/About.xml")["ModMetaData"] for dlc in dlcs}
 
         for dlc in dlcs:
             modd[dlc] = individual_mod(dlc,{},abouts)
@@ -41,7 +64,7 @@ def gen_mod_metadata():
     abouts = {}
 
     for mod in mods:
-        about = mod_parser.mod_about(mod)
+        about = mod_about(mod)
         if "ModMetaData" in about:
             abouts[mod] = about["ModMetaData"]
         elif "ModMetadata" in about:
@@ -68,7 +91,7 @@ def partial_metadata_regen(mods,refetch=True):
 
     abouts = {}
     for mod in mods:
-        about = mod_parser.mod_about(mod)
+        about = mod_about(mod)
         if "ModMetaData" in about:
             abouts[mod] = about["ModMetaData"]
         elif "ModMetadata" in about:

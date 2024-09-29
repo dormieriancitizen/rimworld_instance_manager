@@ -123,11 +123,6 @@ def sorter(modlist):
                         if not Counter(dlc_names) & Counter(modd[d]["orderAfter"]):
                             if not d.startswith("ludeon.rimworld"):
                                 modd[d]["orderAfter"].extend(dlc_names)
-                        else:
-                            print(Counter(dlc_names) & Counter(modd[d]["orderAfter"]))
-                            print(d)
-                    else:
-                        print(d)
 
     deplist = {x: modd[x]["orderAfter"] for x in modd}
 
