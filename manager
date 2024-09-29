@@ -11,7 +11,9 @@ from colorama import Fore, Back, Style
 from datetime import datetime
 # from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend, copy_instance_sheet
 from helpers import *
-import mod_handler, statter, rentry, sorter, sheet_manager
+import mod_handler, rentry, sorter, sheet_manager
+
+from statter import meta, fetch
 
 os.chdir("/home/dormierian/Games/rimworld/instance_manager")
 
@@ -53,7 +55,7 @@ def modlist():
 
 @cli.command("update")
 def cli_update():
-    modd = statter.mod_metadata()
+    modd = meta.mod_metadata()
     toUpdate = []
 
     for mod in modd:
@@ -93,7 +95,7 @@ def cli_mods_stats(choice):
             return
     
     if choice == "authors":
-        modd = statter.mod_metadata(fetch=False)
+        modd = meta.mod_metadata(fetch=False)
         authors = {}
         for d in modd:
             if modd[d]["author"]:
@@ -118,7 +120,7 @@ def cli_mods_stats(choice):
 
         print("\n".join([modd[mod]["graphical_name"] for mod in authors[author]]))
     elif choice == "dependencies":
-        modd = statter.mod_metadata(include_ludeon=True,fetch=False)
+        modd = meta.mod_metadata(include_ludeon=True,fetch=False)
         deps = {}
         
         for d in modd:
@@ -148,13 +150,13 @@ def cli_mods_stats(choice):
         ))
         
     elif choice == "subscribers":
-        data = statter.mod_metadata(sort_by="subs",fetch=False)
+        data = meta.mod_metadata(sort_by="subs",fetch=False)
         print("".join([f"{data[mod]['graphical_name']} has {data[mod]['subs']} subscribers \n" for mod in data]))
     elif choice == "size":
-        modd = statter.mod_metadata(sort_by="size",fetch=False)
+        modd = meta.mod_metadata(sort_by="size",fetch=False)
         print("".join([f"{modd[mod]["graphical_name"]} is {humanize.naturalsize(data[mod]["size"], binary=True)} \n" for mod in modd]))
     elif choice == "time":
-        modd = statter.mod_metadata(sort_by="time_created",fetch=False)
+        modd = meta.mod_metadata(sort_by="time_created",fetch=False)
         print("".join([f"{modd[mod]["graphical_name"]} was made at {datetime.fromtimestamp(int(modd[mod]["time_created"])/1000).strftime('%Y-%m-%d %H:%M:%S')}\n" for mod in modd]))
 
 @cli.command("rentry")
@@ -171,20 +173,20 @@ def reentry_manager():
         url = click.prompt("Rentry Url?")
         ren = rentry.import_rentry(url)
 
-        modd = statter.mod_metadata(index_by="pid",include_ludeon=True)
+        modd = meta.mod_metadata(index_by="pid",include_ludeon=True)
         notin = [x for x in ren if x not in modd]
         print("\n Missing Mod: ".join(notin))
     elif choice == "compare":
         url = click.prompt("Rentry Url?")
         ren = rentry.import_rentry(url)
 
-        modd = statter.mod_metadata(index_by="pid",include_ludeon=True,prune_by=sheet_manager.get_modlist_info(prompt_instance_name()))
+        modd = meta.mod_metadata(index_by="pid",include_ludeon=True,prune_by=sheet_manager.get_modlist_info(prompt_instance_name()))
         yesin = [modd[x]["name"] for x in ren if x in modd]
         print("\n".join(yesin))     
     elif choice == "generate":
         instance_name = prompt_instance_name()
         mods = mod_handler.get_id_list(instance_name)
-        modd = statter.mod_metadata(prune_by=mods,index_by="pid",include_ludeon=True)
+        modd = meta.mod_metadata(prune_by=mods,index_by="pid",include_ludeon=True)
         
         i = 0
         for mod in sorter.sorter(mods):
@@ -210,21 +212,21 @@ def encode():
     mod_handler.dds_encode("source_mods")
 
 @cli.command("modd")
-def modd():
-    statter.mod_metadata()
+def cli_modd():
+    meta.mod_metadata()
 
 @cli.command("sheet_push")
 def sheet_push(instance_name=None):
     if not instance_name:
         instance_name = prompt_instance_name()
     instance = mod_handler.get_id_list(instance_name)
-    modd = statter.mod_metadata(sort_by="time_first_downloaded") 
+    modd = meta.mod_metadata(sort_by="time_first_downloaded") 
     sheet_manager.push_to_backend(modd,instance,instance_name)
 
 @cli.command("time")
 def whenlastupdated():
     time = click.prompt("Time to set (unix milis)")
-    mod_handler.set_download_time(statter.source_mods_list(steam_only=True),time)
+    mod_handler.set_download_time(fetch.source_mods_list(steam_only=True),time)
 
 @cli.command("sort")
 def cli_sort_modlist():
@@ -232,7 +234,7 @@ def cli_sort_modlist():
 
 @cli.command("add_mods")
 def cli_add_mods():
-    modd = statter.mod_metadata()
+    modd = meta.mod_metadata()
     to_add = []
     print("Write done to stop")
     while True:
@@ -304,7 +306,7 @@ def cli_manage_instance(instance):
     else:
         instance = instance[0]
     
-    modd = statter.mod_metadata(sort_by="time_first_downloaded")
+    modd = meta.mod_metadata(sort_by="time_first_downloaded")
 
     modlist_sheet_grab(instance)
     instance_list = mod_handler.get_id_list(instance)

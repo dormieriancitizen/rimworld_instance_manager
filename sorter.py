@@ -1,5 +1,6 @@
-import statter
 from collections import Counter
+
+from statter import meta
 
 def find_circular_dependencies(nodes):
     def dfs(node, visited, rec_stack, path, cycles):
@@ -92,7 +93,7 @@ def topological_sort(nodes,modd):
     return final_order
 
 def sorter(modlist):
-    modd = statter.instance_metadata(modlist)
+    modd = meta.instance_metadata(modlist)
 
     # Convert all loadAfter into loadBefore
     for d in modd:
