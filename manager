@@ -63,10 +63,17 @@ def cli_update():
             timeDownloaded = modd[mod]["time_downloaded"]
             timeUpdated = modd[mod]["time_updated"]
             if timeDownloaded < timeUpdated:
-                print("\n".join([modd[mod]["graphical_name"] for mod in steam_update]))
+                print(f"STEAM mod {modd[mod]["graphical_name"]} is out of date.")
                 steam_update.append(mod)
         if modd[mod]["source"] == "GIT":
-            subprocess.Popen(f"git -C source_mods/{mod} pull",shell=True,stdout=subprocess.DEVNULL)
+            process = subprocess.Popen(f"git -C source_mods/{mod} pull", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+
+            # Decode the output from bytes to string
+            stdout = stdout.decode('utf-8')
+            if "Already up to date" not in stdout:
+                # Do something if the output is not "Already up to date"
+                print(f"GIT mod {modd[mod]["graphical_name"]} has been updated.")
 
     if steam_update:
         print(f"{len(steam_update)} steam mods are out of date:")

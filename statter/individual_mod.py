@@ -133,8 +133,6 @@ def individual_mod(mod,steam_mods,abouts):
     else:
         gname += Fore.BLUE
     gname += Style.BRIGHT
-    if not d["xml_only"]:
-        gname+="©"
     gname += f"[{d["source"]}] "
 
     gname += d["name"]
