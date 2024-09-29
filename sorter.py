@@ -1,4 +1,5 @@
 import statter
+from collections import Counter
 
 def find_circular_dependencies(nodes):
     def dfs(node, visited, rec_stack, path, cycles):
@@ -112,7 +113,21 @@ def sorter(modlist):
             if "ludeon.rimworld" not in modd[d]["orderAfter"]:
                 if d != "ludeon.rimworld":
                     modd[d]["orderAfter"].append("ludeon.rimworld")
-    
+        
+                    # If not otherwise specified, also give every mod an orderAfter all DLCs.
+                    dlc_names = ("biotech", "ideology", "royalty", "anomaly")
+                    dlc_names = [f"ludeon.rimworld.{dlc_name}" for dlc_name in dlc_names]
+                    
+                    if d not in [item for sublist in [modd[dlc_name]["orderAfter"] for dlc_name in dlc_names] for item in sublist]:
+                        if not Counter(dlc_names) & Counter(modd[d]["orderAfter"]):
+                            if not d.startswith("ludeon.rimworld"):
+                                modd[d]["orderAfter"].extend(dlc_names)
+                        else:
+                            print(Counter(dlc_names) & Counter(modd[d]["orderAfter"]))
+                            print(d)
+                    else:
+                        print(d)
+
     deplist = {x: modd[x]["orderAfter"] for x in modd}
 
     order = topological_sort(deplist,modd)

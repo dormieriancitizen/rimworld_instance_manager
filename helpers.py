@@ -21,7 +21,3 @@ def duplicate_check(tocheck):
             dupes.append(check)
     check = nodupes
     return nodupes, dupes
-
-def du(path):
-    # Du in bytes
-    return subprocess.check_output(['du','-sb', path]).split()[0].decode('utf-8')

@@ -24,7 +24,7 @@ def generate_modlist(instance):
                 if not dep in modd_by_pid:
                     if dep in all_modd_by_pid:
                         if all_modd_by_pid[dep]["id"] not in mods:
-                            print(f"{modd[d]["name"]} depends on {dep}, but is a known PID. Adding to modlist")
+                            print(f"{modd[d]["graphical_name"]} depends on {dep}, but is a known PID. Adding to modlist")
                             mods.append(all_modd_by_pid[dep]["id"])
                     else:
                         print(f"Missing unknown dependency {dep}")
@@ -95,7 +95,8 @@ def downloadMods(mods,regen_mods=False):
         # Move fresh mods to a folder to perform operations on
 
     if click.confirm("\nDDS-encode downloaded mods?"):
-        dds_encode("active/fresh")
+        for mod in mods:
+            dds_encode(f"active/fresh/{mod}")
 
     # Regenerate the metadata and return the fresh list
     if regen_mods:

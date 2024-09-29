@@ -1,5 +1,7 @@
-import gspread, os
+import gspread, os, time
 from dotenv import load_dotenv
+
+from colorama import Style
 
 load_dotenv()
 
@@ -23,6 +25,7 @@ def get_instances():
 
 def get_slow_mods():
     gc = gspread.service_account(filename='data/service_account.json')
+    # Pregazer's Slow Mod List
     sh = gc.open_by_key("14xvMkf9zo1EjMMNkRNCWoE8QWVHQWd11v69tuyXT10A")
     slow_mods = sh.worksheet("Slow Mods").col_values(2)
     slow_mods.pop()
@@ -42,8 +45,8 @@ def copy_instance_sheet(source,dest):
         else:
             raise Exception("Source sheet did not exist")
 
-
 def push_to_backend(modd, instance, instance_name):
+    start_time = time.time()
     to_push = []
     to_push.append(["id","pid","source","download_link","name","On/Off"])
     for x in modd:
@@ -60,4 +63,4 @@ def push_to_backend(modd, instance, instance_name):
     sh = get_spreadsheet()
     ws = sh.worksheet(instance_name)
     ws.update(to_push,"A:F")
-
+    print(f"{Style.DIM}Pushed to sheet in {time.time()-start_time}s{Style.RESET_ALL}")

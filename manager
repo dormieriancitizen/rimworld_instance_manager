@@ -1,13 +1,17 @@
 #!/home/dormierian/Games/rimworld/instance_manager/bin/python
 
 import os, click, humanize, regex, csv, time
+
 from InquirerPy import inquirer
+from InquirerPy.base.control import Choice
+from InquirerPy.separator import Separator
+
 from colorama import Fore, Back, Style
 
 from datetime import datetime
-from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend, copy_instance_sheet
+# from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend, copy_instance_sheet
 from helpers import *
-import mod_handler, statter, rentry, sorter
+import mod_handler, statter, rentry, sorter, sheet_manager
 
 os.chdir("/home/dormierian/Games/rimworld/instance_manager")
 
@@ -15,15 +19,12 @@ os.chdir("/home/dormierian/Games/rimworld/instance_manager")
 def cli():
     pass
 
-@cli.command
-def modlist():
-    instance_name = prompt_instance_name()    
-
-    if click.confirm("Get modlist from sheet?"):
-        with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
-            instance_csv.write(get_modlist_info(instance_name))
-
-    mod_handler.generate_modlist(instance_name)
+def modlist_sheet_grab(instance,fetch=None):
+    if fetch is None:
+        fetch = click.confirm("Get modlist from sheet?")
+    if fetch:
+        with open(f"instances/{instance}/modlist.csv","w") as instance_csv:
+            instance_csv.write(sheet_manager.get_modlist_info(instance))
 
 def prompt_instance_name():
     instance_name = ""
@@ -37,12 +38,18 @@ def prompt_instance_name():
         with open(f"cached_instance_name","w") as instance_cache:            
             instance_name = inquirer.select(
                 message="Choose instance",
-                choices=get_instances(),
+                choices=sheet_manager.get_instances(),
                 pointer=">",
             ).execute()
 
             instance_cache.write(instance_name)
     return instance_name
+
+@cli.command
+def modlist():
+    instance_name = prompt_instance_name()    
+    modlist_sheet_grab(instance_name)
+    mod_handler.generate_modlist(instance_name)
 
 @cli.command("update")
 def cli_update():
@@ -58,7 +65,7 @@ def cli_update():
 
     if toUpdate:
         print(f"The following {len(toUpdate)} mods are out of date:")
-        print("\n".join([modd[mod]["name"] for mod in toUpdate]))
+        print("\n".join([modd[mod]["graphical_name"] for mod in toUpdate]))
 
         if click.confirm("Download them now?"):
             mod_handler.downloadMods(toUpdate)
@@ -66,18 +73,27 @@ def cli_update():
         print("No mods detected out of date.")
 
 @cli.command("stats")
-def cli_mods_stats():
+@click.argument("choice",nargs = -1)    
+def cli_mods_stats(choice):
     options = ["authors","subscribers","size","time","dependencies"]
 
-    choice = inquirer.select(
-        message="Get mods by",
-        choices=options,
-        pointer="-",
-    ).execute()
-
+    if len(choice) > 1:
+        print("Please pass 0 or 1 choice")
+        return
+    elif len(choice) == 0:
+        choice = inquirer.select(
+            message="Get mods by",
+            choices=options,
+            pointer=">",
+        ).execute()
+    else:
+        choice = choice[0]
+        if choice not in options:
+            print("Option not valid")
+            return
+    
     if choice == "authors":
-        modd = statter.mod_metadata()
-
+        modd = statter.mod_metadata(fetch=False)
         authors = {}
         for d in modd:
             if modd[d]["author"]:
@@ -93,25 +109,20 @@ def cli_mods_stats():
         authors = {k: v for k, v in sorted(authors.items(), key=lambda item: len(item[1]), reverse=True)}
 
         # Print the sorted list of authors with mod counts
-        modStrings = {f"{author}: {len(authors[author])} mods": author for author in authors}
-
+        choices = [Choice(value=author,name=f"{author}: {len(authors[author])} mods") for author in authors]
         author = inquirer.select(
             message="Choose author",
-            choices=modStrings,
+            choices=choices,
             pointer=">",
         ).execute()
 
-        author = modStrings[author]
-
-        print("\n".join([modd[mod]["name"] for mod in authors[author]]))
-
+        print("\n".join([modd[mod]["graphical_name"] for mod in authors[author]]))
     elif choice == "dependencies":
-        modd = statter.mod_metadata(include_ludeon=True)
+        modd = statter.mod_metadata(include_ludeon=True,fetch=False)
         deps = {}
-
+        
         for d in modd:
             if modd[d]["deps"]:
-                # Split authors by commas, strip whitespace, and increment mod count for each author
                 for dep in modd[d]["deps"]:
                     if dep in deps:
                         deps[dep].append(d)
@@ -124,39 +135,27 @@ def cli_mods_stats():
         modd_by_pid = {modd[x]["pid"]: modd[x] for x in modd}
 
         # Print the sorted list of authors with mod counts
-        modStrings = {f"{modd_by_pid[dep]["name"] if dep in modd_by_pid else dep}: {len(deps[dep])} mods": dep for dep in deps}
+        choices = [Choice(value=dep,name=f"{modd_by_pid[dep]["name"] if dep in modd_by_pid else dep} has {len(deps[dep])} dependencies") for dep in deps]
 
         dep = inquirer.select(
             message="Select mod to get dependencies of",
-            choices=modStrings,
+            choices=choices,
             pointer=">",
         ).execute()
 
-        dep = modStrings[dep]
-
         print("\n".join(
-            [modd[dep]["name"] for dep in deps[dep]]
+            [modd[dep]["graphical_name"] for dep in deps[dep]]
         ))
         
     elif choice == "subscribers":
-        data = statter.mod_metadata(sort_by="subs")
-        out = ""
-        for mod in data:
-            out+=f"{data[mod]["name"]} has {data[mod]["subs"]} subscribers \n"
-        print(out)
+        data = statter.mod_metadata(sort_by="subs",fetch=False)
+        print("".join([f"{data[mod]['graphical_name']} has {data[mod]['subs']} subscribers \n" for mod in data]))
     elif choice == "size":
-        data = statter.mod_metadata(sort_by="size")
-        out = ""
-        for mod in data:
-            out+=f"{data[mod]["name"]} is {humanize.naturalsize(data[mod]["size"], binary=True)} \n"
-        print(out)
+        modd = statter.mod_metadata(sort_by="size",fetch=False)
+        print("".join([f"{modd[mod]["graphical_name"]} is {humanize.naturalsize(data[mod]["size"], binary=True)} \n" for mod in modd]))
     elif choice == "time":
-        data = statter.mod_metadata(sort_by="time_created")
-        out = ""
-        for mod in data:
-            out+=f"{data[mod]["name"]} was made at {datetime.fromtimestamp(int(data[mod]["time_created"])).strftime('%Y-%m-%d %H:%M:%S')}\n"
-        print(out)
-    return
+        modd = statter.mod_metadata(sort_by="time_created",fetch=False)
+        print("".join([f"{modd[mod]["graphical_name"]} was made at {datetime.fromtimestamp(int(modd[mod]["time_created"])/1000).strftime('%Y-%m-%d %H:%M:%S')}\n" for mod in modd]))
 
 @cli.command("rentry")
 def reentry_manager():
@@ -179,7 +178,7 @@ def reentry_manager():
         url = click.prompt("Rentry Url?")
         ren = rentry.import_rentry(url)
 
-        modd = statter.mod_metadata(index_by="pid",include_ludeon=True,prune_by=get_modlist_info(prompt_instance_name()))
+        modd = statter.mod_metadata(index_by="pid",include_ludeon=True,prune_by=sheet_manager.get_modlist_info(prompt_instance_name()))
         yesin = [modd[x]["name"] for x in ren if x in modd]
         print("\n".join(yesin))     
     elif choice == "generate":
@@ -202,7 +201,7 @@ def reentry_manager():
     elif choice == "check for slow mods":
         url = click.prompt("Rentry Url?")
         modlist = rentry.import_rentry(url)
-        slow_mods = get_slow_mods()
+        slow_mods = sheet_manager.get_slow_mods()
 
         print([x for x in modlist if x in slow_mods])
 
@@ -220,7 +219,7 @@ def sheet_push(instance_name=None):
         instance_name = prompt_instance_name()
     instance = mod_handler.get_id_list(instance_name)
     modd = statter.mod_metadata(sort_by="time_first_downloaded") 
-    push_to_backend(modd,instance,instance_name)
+    sheet_manager.push_to_backend(modd,instance,instance_name)
 
 @cli.command("time")
 def whenlastupdated():
@@ -270,7 +269,7 @@ def cli_add_mods():
         mods.extend(to_add)
         with open(f"instances/{instance_name}/modlist.csv","w") as instance_csv:
             instance_csv.write(",".join(mods))
-        push_to_backend(modd,mods,instance_name)
+        sheet_manager.push_to_backend(modd,mods,instance_name)
     mods = []
     
     return mods
@@ -284,7 +283,7 @@ def cli_make_instance():
     else:
         source = "Instance Template"
     
-    if copy_instance_sheet(source,instance_name):
+    if sheet_manager.copy_instance_sheet(source,instance_name):
         print("Sheet copied")
     else:
         print("Sheet already exists!")
@@ -292,7 +291,41 @@ def cli_make_instance():
     os.mkdir("instances/"+instance_name)
 
     with open(f"instances/{instance_name}/modlist.csv","w") as f:
-        f.write(get_modlist_info(instance_name))   
+        f.write(sheet_manager.get_modlist_info(instance_name))   
+
+@cli.command("inscon")
+@click.argument("instance",nargs = -1)
+def cli_manage_instance(instance):
+    if len(instance) > 1:
+        print("Please pass 0 or 1 instance")
+        return
+    elif len(instance) == 0:
+        instance = prompt_instance_name()
+    else:
+        instance = instance[0]
+    
+    modd = statter.mod_metadata(sort_by="time_first_downloaded")
+
+    modlist_sheet_grab(instance)
+    instance_list = mod_handler.get_id_list(instance)
+
+    choices = [
+        Choice(name=modd[d]["name"],value=d,enabled=d in instance_list) 
+        for d in modd
+    ]
+
+    response = inquirer.select(
+        message="Select which mods to toggle",
+        choices=choices,
+        pointer=">",
+        multiselect=True
+    ).execute()
+
+    to_enable = [mod for mod in response if mod not in instance_list]
+    print(to_enable)
+
+    to_disable = [mod for mod in instance_list if mod not in response]
+    print(to_disable)
 
 if __name__ == '__main__':
     cli()
