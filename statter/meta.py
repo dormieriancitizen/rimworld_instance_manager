@@ -5,12 +5,16 @@ from statter.individual_mod import individual_mod
 
 from colorama import Style, Fore, Back
 
+dlcs = ("Core","Biotech","Ideology","Royalty","Anomaly")
+
 async def mod_about(mod, path=None):
     if path == None:
         if os.path.exists(f"source_mods/{mod}/About/About.xml"):
             path = f"source_mods/{mod}/About/About.xml"
         elif os.path.exists(f"source_mods/{mod}/About/about.xml"):
             path = f"source_mods/{mod}/About/about.xml"
+        else:
+            print(f"Could not find path for {mod}, was passed {path}")
     else:
         if not os.path.exists(path):
             raise Exception(f"Passed nonexistent path {path}")
@@ -21,9 +25,9 @@ async def mod_about(mod, path=None):
                 return xmltodict.parse(aboutxml, dict_constructor=dict)
             except xmltodict.xml.parsers.expat.ExpatError:
                 return {}
-    except TypeError:
+    except TypeError as error:
         print(path,mod)
-        raise Exception("bugg")
+        raise Exception("Path is somehow still none?")
     except FileNotFoundError:
         print(f"Unknown mod: "+mod)
         raise Exception(f"Passed nonexistent path {path}")
@@ -32,7 +36,7 @@ async def load_mod_metadata():
     with open("data/modd.json","r") as f:
         return json.load(f)  
 
-def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,include_ludeon=False):
+def mod_metadata(sort_by = None, index_by = None, prune_by = [], fetch=None,include_ludeon=False):
     if fetch is None:
         fetch = click.confirm("Generate new metadata?")
     
@@ -41,14 +45,11 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,in
     else:
         modd = asyncio.run(load_mod_metadata())
   
+    if not include_ludeon:
+        prune_by.extend(dlcs)
     if prune_by:
         modd = {e: modd[e] for e in modd if e in prune_by}
-    if include_ludeon:
-        dlcs = ["Core","Biotech","Ideology","Royalty","Anomaly"]
-        abouts = {dlc: mod_about(dlc,path=f"/home/dormierian/Games/rimworld/Data/{dlc}/About/About.xml")["ModMetaData"] for dlc in dlcs}
-
-        for dlc in dlcs:
-            modd[dlc] = individual_mod(dlc,{},abouts)
+   
     if sort_by:
         modd = dict(sorted(modd.items(), key=lambda item: float(item[1][sort_by])))
     if index_by:
@@ -60,7 +61,10 @@ async def load_abouts(mods):
 
     time_to_about = time.time()
 
-    tasks = [mod_about(mod) for mod in mods]
+    tasks = [mod_about(mod) for mod in mods if mod not in dlcs]
+
+    tasks.extend([mod_about(dlc,path=f"/home/dormierian/Games/rimworld/Data/{dlc}/About/About.xml") for dlc in dlcs])
+
     results = await asyncio.gather(*tasks)
 
     for mod, about in zip(mods, results):
@@ -79,6 +83,7 @@ async def gen_mod_metadata(steam_fetch=False,mods=None):
     if mods is None:
         update = False
         mods = fetch.source_mods_list()
+        mods.extend(dlcs)
     else:
         update = True
         modd_task = asyncio.create_task(load_mod_metadata())
