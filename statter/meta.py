@@ -36,9 +36,13 @@ async def load_mod_metadata():
     with open("data/modd.json","r") as f:
         return json.load(f)  
 
-def mod_metadata(sort_by = None, index_by = None, prune_by = [], fetch=None,include_ludeon=False):
+def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,include_ludeon=False,always_prompt=False):
     if fetch is None:
-        fetch = click.confirm("Generate new metadata?")
+        if os.path.exists("data/modd_dirty") or always_prompt:
+            fetch = click.confirm("Generate new metadata?")
+        else:
+            print("Data is not marked dirty, sending cached")
+            fetch = False
     
     if fetch:
         modd = asyncio.run(gen_mod_metadata(steam_fetch=click.confirm("Fetch new mod info?")))
@@ -46,10 +50,11 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = [], fetch=None,incl
         modd = asyncio.run(load_mod_metadata())
   
     if not include_ludeon:
-        prune_by.extend(dlcs)
+        modd = {e: modd[e] for e in modd if e not in dlcs}
     if prune_by:
+        if include_ludeon:
+            prune_by.extend(dlcs)
         modd = {e: modd[e] for e in modd if e in prune_by}
-   
     if sort_by:
         modd = dict(sorted(modd.items(), key=lambda item: float(item[1][sort_by])))
     if index_by:
@@ -103,7 +108,7 @@ async def gen_mod_metadata(steam_fetch=False,mods=None):
     tasks = [asyncio.create_task(individual_mod(mod,None,abouts[mod])) for mod in local_mods]
 
     steam_modds = await steam_task
-    tasks = [asyncio.create_task(individual_mod(mod,(steam_modds[mod] if mod in steam_modds else None),abouts[mod])) for mod in steam_mods]
+    tasks.extend([asyncio.create_task(individual_mod(mod,(steam_modds[mod] if mod in steam_modds else None),abouts[mod])) for mod in steam_mods])
     
     results = await asyncio.gather(*tasks)
     partial_modd = {result["id"]: result for result in results}
@@ -137,4 +142,5 @@ def instance_metadata(modlist):
             for rule in comun_rules[mod]["loadAfter"]:
                 if rule in modd and not rule in modd[mod]["loadAfter"]:
                     modd[mod]["loadAfter"].append(rule.lower())
+    
     return modd

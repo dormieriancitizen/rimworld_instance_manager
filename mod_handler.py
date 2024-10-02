@@ -47,9 +47,9 @@ def generate_modlist(instance):
                 print(f"Missing mod {mod}, but is not a steam mod")
 
     if missing_mod_list:
-        if click.confirm("Missing mods detected. Download?"):
-            print(missing_mod_list)
-            modd = downloadMods(steam_mods=missing_mod_list,regen_mods=True)
+        print("Missing mods detected. Add then using rimman add_mods")
+        print(missing_mod_list)
+        return
 
     dupes = []
     pruned_modd = {d: modd[d] for d in modd if d in mods}
@@ -86,12 +86,13 @@ def link_modlist(mods):
         except FileExistsError:
             print(f"Duplicate Mod: {mod}. This should never happen!")
 
-def downloadMods(steam_mods=[],github_mods=[],regen_mods=False):
-    pattern = r"(?<=https://github.com/.*?/)(.*)(?=/)"
-    mods = [regex.search(pattern, url).group(1) if regex.search(pattern, url) else None for url in github_mods]
-    
-    mods += steam_mods
-    
+def downloadMods(mods,regen_mods=False):
+    # pattern = r"(?<=https://github.com/.*?/)(.*)(?=/)"
+    # mods = [regex.search(pattern, url).group(1) if regex.search(pattern, url) else None for url in github_mods]
+
+    steam_mods = [mod for mod in mods if mods[mod]["source"]=="STEAM"]
+    github_mods = [mods[mod]["download_link"] for mod in mods if mods[mod]["source"]=="GIT"]
+
     dls = []
 
     if steam_mods:

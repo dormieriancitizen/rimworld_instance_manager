@@ -112,7 +112,10 @@ async def individual_mod(mod,steam_mod,about):
 
         d["size"] = steam_mod["file_size"] if "file_size" in steam_mod else du(mod_path)
     else:
-        d["download_link"] = d["url"]
+        if d["source"] == "GIT":
+            d["download_link"] = subprocess.check_output(["git", "-C",mod_path.as_posix(),"config", "--get", "remote.origin.url"]).decode("utf-8").rstrip()
+        else:
+            d["download_link"] = d["url"]
         d["subs"] = "0"
         d["pfid"] = "0"
 
