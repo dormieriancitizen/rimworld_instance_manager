@@ -90,12 +90,20 @@ async def gen_mod_metadata(steam_fetch=False,mods=None):
     
     # Don't include time to fetch mod info
     steam_mods = [mod for mod in mods if fetch.is_steam_mod(mod)]
+    local_mods = [mod for mod in mods if mod not in steam_mods]
     start_time = time.time()
 
-    abouts, steam_modds = await asyncio.gather(load_abouts(mods), fetch.fetch_steam_info(fetch=steam_fetch,mods=steam_mods))
+    abouts_task = asyncio.create_task(load_abouts(mods))
+    steam_task = asyncio.create_task(fetch.fetch_steam_info(fetch=steam_fetch,mods=steam_mods))
+
+    abouts = await abouts_task
     time_to_generate = time.time()
 
-    tasks = [asyncio.create_task(individual_mod(mod,(steam_modds[mod] if mod in steam_modds else None),abouts[mod])) for mod in mods]
+    # We can start the local mods once abouts are generated
+    tasks = [asyncio.create_task(individual_mod(mod,None,abouts[mod])) for mod in local_mods]
+
+    steam_modds = await steam_task
+    tasks = [asyncio.create_task(individual_mod(mod,(steam_modds[mod] if mod in steam_modds else None),abouts[mod])) for mod in steam_mods]
     
     results = await asyncio.gather(*tasks)
     partial_modd = {result["id"]: result for result in results}

@@ -1,10 +1,12 @@
 
-import click, requests, json, time, subprocess, os
+import click, requests, json, time, subprocess, os, asyncio, functools
 from colorama import Style
 
 async def fetch_steam_info(fetch=None,mods=None):
     if fetch is None:
         fetch = click.confirm("Fetch new mod info?")
+
+    loop = asyncio.get_event_loop()
     
     start_time = time.time()
     if fetch:
@@ -24,7 +26,7 @@ async def fetch_steam_info(fetch=None,mods=None):
         for i in range(len(mods)):
             payload[f"publishedfileids[{i}]"] = mods[i]
 
-        steamd = requests.post(url, data=payload).json()
+        steamd = (await loop.run_in_executor(None,functools.partial(requests.post, url, data=payload))).json()
         
         if not mods:
             responseFile = open("data/response.json","w")
