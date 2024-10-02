@@ -7,6 +7,8 @@ from InquirerPy.base.control import Choice
 from InquirerPy.separator import Separator
 
 from colorama import Fore, Back, Style
+from colorama import init as colorama_init
+colorama_init()
 
 from datetime import datetime
 # from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend, copy_instance_sheet
@@ -79,7 +81,7 @@ def cli_update():
         print(f"{len(steam_update)} steam mods are out of date:")
 
         if click.confirm("Download them now?"):
-            mod_handler.downloadMods(steam_mods=steam_update)
+            mod_handler.downloadMods(steam_mods=steam_update,regen_mods=True)
     else:
         print("No mods detected out of date.")
 

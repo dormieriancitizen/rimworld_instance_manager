@@ -1,4 +1,4 @@
-import click, os, csv, time, subprocess, regex
+import click, os, csv, time, subprocess, regex, asyncio
 from helpers import *
 
 from pathlib import Path
@@ -132,7 +132,7 @@ def downloadMods(steam_mods=[],github_mods=[],regen_mods=False):
 
     # Regenerate the metadata and return the fresh list
     if regen_mods:
-        return meta.partial_metadata_regen(steam_mods)
+        return asyncio.run(meta.gen_mod_metadata(mods=steam_mods,steam_fetch=True))
     
 
 def set_download_time(mods, write_time=None):

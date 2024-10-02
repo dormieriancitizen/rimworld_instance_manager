@@ -1,11 +1,11 @@
 from statter import fetch
-import json, click, time, xmltodict, os
+import json, click, time, xmltodict, os, asyncio
 
 from statter.individual_mod import individual_mod
 
 from colorama import Style, Fore, Back
 
-def mod_about(mod, path=None):
+async def mod_about(mod, path=None):
     if path == None:
         if os.path.exists(f"source_mods/{mod}/About/About.xml"):
             path = f"source_mods/{mod}/About/About.xml"
@@ -28,17 +28,18 @@ def mod_about(mod, path=None):
         print(f"Unknown mod: "+mod)
         raise Exception(f"Passed nonexistent path {path}")
 
-def load_mod_metadata():
+async def load_mod_metadata():
     with open("data/modd.json","r") as f:
         return json.load(f)  
 
 def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,include_ludeon=False):
     if fetch is None:
         fetch = click.confirm("Generate new metadata?")
+    
     if fetch:
-            modd = gen_mod_metadata()
+        modd = asyncio.run(gen_mod_metadata(steam_fetch=click.confirm("Fetch new mod info?")))
     else:
-        modd = load_mod_metadata()
+        modd = asyncio.run(load_mod_metadata())
   
     if prune_by:
         modd = {e: modd[e] for e in modd if e in prune_by}
@@ -54,17 +55,15 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,in
         modd = {modd[e][index_by]:modd[e] for e in modd}
     return modd
 
-def gen_mod_metadata():
-    steam_mods = fetch.fetch_steam_info()
-
-    # Don't include time to fetch mod info
-    start_time = time.time()
-    mods = fetch.source_mods_list()
-
+async def load_abouts(mods):
     abouts = {}
 
-    for mod in mods:
-        about = mod_about(mod)
+    time_to_about = time.time()
+
+    tasks = [mod_about(mod) for mod in mods]
+    results = await asyncio.gather(*tasks)
+
+    for mod, about in zip(mods, results):
         if "ModMetaData" in about:
             abouts[mod] = about["ModMetaData"]
         elif "ModMetadata" in about:
@@ -72,42 +71,40 @@ def gen_mod_metadata():
         else:
             abouts[mod] = None
     
-    modd = {}
-    count = 0
-    for mod in mods:
-        count += 1
-        modd[mod] = individual_mod(mod,steam_mods,abouts)
+    print(f"{Style.DIM}Loaded about.xmls in {time.time()-time_to_about}{Style.RESET_ALL}")
+
+    return abouts
+
+async def gen_mod_metadata(steam_fetch=False,mods=None):
+    if mods is None:
+        update = False
+        mods = fetch.source_mods_list()
+    else:
+        update = True
+        modd_task = asyncio.create_task(load_mod_metadata())
+    # Don't include time to fetch mod info
+    start_time = time.time()
+
+    abouts, steam_mods = await asyncio.gather(load_abouts(mods), fetch.fetch_steam_info(fetch=steam_fetch,mods=[mod for mod in mods if fetch.is_steam_mod(mod)]))
+    time_to_generate = time.time()
+
+    tasks = {mod: individual_mod(mod,steam_mods[mod] if mod in steam_mods else None,abouts[mod]) for mod in mods}
+
+    results = await asyncio.gather(*tasks.values())
+    
+    if update:
+        partial_modd = dict(zip(tasks.keys(), results))
+        modd = await modd_task
+        modd.update(partial_modd)
+    else:
+        modd = dict(zip(tasks.keys(), results))
+
+    print(f"{Style.DIM}Processed info in {time.time()-time_to_generate}{Style.RESET_ALL}")
 
     with open("data/modd.json","w") as f:
         json.dump(modd,f)
     
-    print(f"{Style.DIM}Generated metadata for {count} mods in {time.time()-start_time}{Style.RESET_ALL}")
-    return modd
-
-def partial_metadata_regen(mods,refetch=True):
-    start_time = time.time()
-    modd = load_mod_metadata()
-    steam_mods = fetch.fetch_steam_info(fetch=refetch,mods=mods)
-
-    abouts = {}
-    for mod in mods:
-        about = mod_about(mod)
-        if "ModMetaData" in about:
-            abouts[mod] = about["ModMetaData"]
-        elif "ModMetadata" in about:
-            abouts[mod] = about["ModMetadata"]
-        else:
-            abouts[mod] = None
-
-    count = 0 
-    for mod in mods:
-        count += 1
-        modd[mod] = individual_mod(mod,steam_mods,abouts)
-
-    with open("data/modd.json","w") as f:
-        json.dump(modd,f)  
-    
-    print(f"{Style.DIM}Generated partial metadata for {count} mods in {time.time()-start_time}{Style.RESET_ALL}")
+    print(f"{Style.DIM}Generated{" partial" if update else ""} metadata for {len(mods)} mods in {time.time()-start_time}{Style.RESET_ALL}")
     return modd
 
 def instance_metadata(modlist):

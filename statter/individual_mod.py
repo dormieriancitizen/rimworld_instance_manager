@@ -6,15 +6,15 @@ from colorama import Style, Fore, Back
 # SETTINGS
 VERSION = "1.5"
 
-def individual_mod(mod,steam_mods,abouts):
+async def individual_mod(mod,steam_mod,about):
     def read_li(atr):
-        nonlocal abouts
+        nonlocal about
 
         items = []
-        if atr in abouts[mod]:
-            if abouts[mod][atr]:
-                if abouts[mod][atr]["li"]:
-                    items = abouts[mod][atr]["li"]
+        if atr in about:
+            if about[atr]:
+                if about[atr]["li"]:
+                    items = about[atr]["li"]
 
                     # If there's more than one li, then its already list, otherwise, make it a list.
                     items = [items] if isinstance(items,dict) or isinstance(items,str) else items
@@ -33,14 +33,14 @@ def individual_mod(mod,steam_mods,abouts):
     d = {}
     d["id"] = mod
 
-    if "packageId" in abouts[mod]:
-        d["pid"] = abouts[mod]["packageId"].lower()  
+    if "packageId" in about:
+        d["pid"] = about["packageId"].lower()  
     else:
         raise Exception(f"Mod {mod} has no pid")
 
     if d["pid"].startswith("ludeon."):
         d["source"] = "LUDEON"
-    elif mod in steam_mods:
+    elif steam_mod:
         d["source"] = "STEAM"
     elif (mod_path / ".git").is_dir():
         d["source"] = "GIT"
@@ -48,9 +48,9 @@ def individual_mod(mod,steam_mods,abouts):
         d["source"] = "LOCAL"
     
 
-    d["name"] = abouts[mod]["name"] if "name" in abouts[mod] else d["pid"]
-    d["author"] = abouts[mod]["author"] if "author" in abouts[mod] else ""
-    d["url"] = abouts[mod]["url"] if "url" in abouts[mod] else ""
+    d["name"] = about["name"] if "name" in about else d["pid"]
+    d["author"] = about["author"] if "author" in about else ""
+    d["url"] = about["url"] if "url" in about else ""
 
     d["deps"] = [dep["packageId"].lower() for dep in read_li("modDependencies")]
     d["loadBefore"] = [dep.lower() for dep in read_li("loadBefore")]
@@ -104,13 +104,13 @@ def individual_mod(mod,steam_mods,abouts):
 
     if d["source"] == "STEAM":
         d["download_link"] = "https://steamcommunity.com/workshop/filedetails/?id="+mod
-        d["subs"] = str(steam_mods[mod]["lifetime_subscriptions"]) if "lifetime_subscriptions" in steam_mods[mod] else "0"
-        d["pfid"] = f"{steam_mods[mod]["preview_url"]}?imw=100&imh=100&impolicy=Letterbox" if "preview_url" in steam_mods[mod] else "https://github.com/RimSort/RimSort/blob/main/docs/rentry_steam_icon.png?raw=true"
+        d["subs"] = str(steam_mod["lifetime_subscriptions"]) if "lifetime_subscriptions" in steam_mod else "0"
+        d["pfid"] = f"{steam_mod["preview_url"]}?imw=100&imh=100&impolicy=Letterbox" if "preview_url" in steam_mod else "https://github.com/RimSort/RimSort/blob/main/docs/rentry_steam_icon.png?raw=true"
 
-        d["time_created"] = str(steam_mods[mod]["time_created"]*1000) if "time_created" in steam_mods[mod] else "0"
-        d["time_updated"] = str(steam_mods[mod]["time_updated"]*1000) if "time_updated" in steam_mods[mod] else "0"
+        d["time_created"] = str(steam_mod["time_created"]*1000) if "time_created" in steam_mod else "0"
+        d["time_updated"] = str(steam_mod["time_updated"]*1000) if "time_updated" in steam_mod else "0"
 
-        d["size"] = steam_mods[mod]["file_size"] if "file_size" in steam_mods[mod] else du(mod_path)
+        d["size"] = steam_mod["file_size"] if "file_size" in steam_mod else du(mod_path)
     else:
         d["download_link"] = d["url"]
         d["subs"] = "0"

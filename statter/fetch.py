@@ -2,12 +2,12 @@
 import click, requests, json, time, subprocess, os
 from colorama import Style
 
-def fetch_steam_info(fetch=None,mods=None):
-    if not fetch:
+async def fetch_steam_info(fetch=None,mods=None):
+    if fetch is None:
         fetch = click.confirm("Fetch new mod info?")
+    
+    start_time = time.time()
     if fetch:
-        start_time = time.time()
-
         # Read from the steam API and write to file
         if not mods:
             mods = source_mods_list(steam_only=True)
@@ -30,26 +30,33 @@ def fetch_steam_info(fetch=None,mods=None):
             responseFile = open("data/response.json","w")
             json.dump(steamd, responseFile)
             responseFile.close()
-
-        print(f"{Style.DIM}Fetched from steam in {time.time()-start_time}{Style.RESET_ALL}")
     else:
         with open("data/response.json", "r") as f:
             steamd = json.load(f)
-    
+    print(f"{Style.DIM}{"Fetched from steam in " if fetch else "Loaded from steam response file in "}{time.time()-start_time}{Style.RESET_ALL}")
+
     # Reorganise the response by each ID
     steamd = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}
 
     return steamd
 
-
 def fetch_rimsort_community_rules():
     subprocess.Popen("git -C data/rs_rules pull",shell=True,stdout=subprocess.DEVNULL).wait()
     with open("data/rs_rules/communityRules.json", "r") as f:
         return json.load(f)
-    
+
+def is_steam_mod(mod):
+    if not mod.isnumeric():
+        return False
+    if not len(mod) >= 9:
+        return False
+    if not len(mod) <= 10:
+        return False
+    else:
+        return True
 
 def source_mods_list(steam_only=None):
     source_mods = [f.path.split("/", 1)[1] for f in os.scandir("source_mods") if f.is_dir()]
     if steam_only:
-        source_mods = [f for f in source_mods if f.isnumeric()]
+        source_mods = [f for f in source_mods if is_steam_mod(f)]
     return source_mods
