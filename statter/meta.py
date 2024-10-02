@@ -82,13 +82,15 @@ async def gen_mod_metadata(steam_fetch=False,mods=None):
     else:
         update = True
         modd_task = asyncio.create_task(load_mod_metadata())
+    
     # Don't include time to fetch mod info
+    steam_mods = [mod for mod in mods if fetch.is_steam_mod(mod)]
     start_time = time.time()
 
-    abouts, steam_mods = await asyncio.gather(load_abouts(mods), fetch.fetch_steam_info(fetch=steam_fetch,mods=[mod for mod in mods if fetch.is_steam_mod(mod)]))
+    abouts, steam_modds = await asyncio.gather(load_abouts(mods), fetch.fetch_steam_info(fetch=steam_fetch,mods=steam_mods))
     time_to_generate = time.time()
 
-    tasks = {mod: individual_mod(mod,steam_mods[mod] if mod in steam_mods else None,abouts[mod]) for mod in mods}
+    tasks = {mod: individual_mod(mod,steam_modds[mod] if mod in steam_modds else None,abouts[mod]) for mod in mods}
 
     results = await asyncio.gather(*tasks.values())
     
