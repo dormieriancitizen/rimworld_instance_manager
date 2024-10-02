@@ -6,7 +6,7 @@ from colorama import Style, Fore, Back
 # SETTINGS
 VERSION = "1.5"
 
-def individual_mod(mod,steam_mod,about):
+async def individual_mod(mod,steam_mod,about):
     def read_li(atr):
         nonlocal about
 

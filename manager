@@ -148,7 +148,7 @@ def cli_mods_stats(choice):
         modd_by_pid = {modd[x]["pid"]: modd[x] for x in modd}
 
         # Print the sorted list of authors with mod counts
-        choices = [Choice(value=dep,name=f"{modd_by_pid[dep]["name"] if dep in modd_by_pid else dep} has {len(deps[dep])} dependencies") for dep in deps]
+        choices = [Choice(value=dep,name=f"{modd_by_pid[dep]["name"] if dep in modd_by_pid else dep} has {len(deps[dep])} dependents") for dep in deps]
 
         dep = inquirer.select(
             message="Select mod to get dependencies of",
