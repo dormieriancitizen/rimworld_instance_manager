@@ -2,6 +2,8 @@ import regex, requests
 import numpy as np
 from rentryupload import RentryUpload
 from urllib.parse import urlparse, unquote
+from pathlib import Path
+from os import getenv
 
 def import_rentry(rentry_url):
     r = unquote(requests.get(rentry_url).text)
@@ -19,11 +21,14 @@ def compile_rentry(modd):
     modd = {keys[i]: vals[i] for i in sorted_value_index}
 
     report = (
-        "# RimWorld mod list       ![](https://github.com/RimSort/RimSort/blob/main/docs/rentry_preview.png?raw=true)"
-        + f"\nCreated with a bad python script I wrote with a lot of code from RimSort"
-        + f"\nMod list was created for game version:"
-        + "\n!!! info Local mods are marked as yellow labels with packageid in brackets."
-        + f"\n\n\n\n!!! note Mod list length: `{len(modd)}`\n"
+        f"# RimWorld Mod List: {len(modd)} mods       ![](https://github.com/RimSort/RimSort/blob/main/docs/rentry_preview.png?raw=true)"
+        "\nCreated with a bad python script with a lot of borrowed code from RimSort"
+        f"\nMod list was created for game version: {Path(getenv('GAME_PATH')+'Version.txt').read_text()}"
+        "\n!!! info Local mods are marked as yellow labels with packageid in brackets."
+        "\n!!! info Mods not from the current version are marked in red"
+        f"\n!!! note Mod list length: `{len(modd)}`\n"
+        "\n***"
+
     )
 
     count = 0
@@ -31,20 +36,38 @@ def compile_rentry(modd):
     for mod in modd:
         count += 1
         name = modd[mod]["name"]
+
         url = modd[mod]["download_link"]
+
         pid = modd[mod]["pid"]
 
-        if modd[mod]["source"] == "STEAM":
-            preview_url = modd[mod]["pfid"]
-            report += f"\n{str(count) + '.'} ![]({preview_url}) [{name}]({url} packageid: {pid})"
+        report += "\n"
+        package_id_string = "{packageid: " + pid + "}"
 
+        if getenv("RIMWORLD_VERSION") not in modd[mod]["supportedVersions"]:
+            report += "\n!!! danger "
+        elif modd[mod]["source"] in ("LOCAL","GIT"):
+            report += "\n!!! warning "
+        elif modd[mod]["source"] == "LUDEON":
+            report += "\n!!! info "
+        elif modd[mod]["source"] == "STEAM":
+            pass
+
+        # Add the index
+        report += str(count) + '. '
+
+        if modd[mod]["source"] == "STEAM":
+            # Image
+            report += f"![{pid}]({modd[mod]["pfid"]})"+" "
+
+        if not url:
+            report += f"{name}"  # f-strings don't support the squilly brackets
         else:
-            if url is None:
-                report += f"\n!!! warning {str(count) + '.'} {name} " + "{" + f"packageid: {pid}" + "} " # f-strings don't support the squilly brackets
-                
-            else:
-                report += f"\n!!! warning {str(count) + '.'} [{name}]({url}) " + "{" + f"packageid: {pid}" + "} "
-    
+            report += f"[{name}]({url})"
+
+        if modd[mod]["source"] != "STEAM":
+            report += " "+package_id_string       
+
     return report
 
 def upload(text):

@@ -4,7 +4,7 @@ from pathlib import Path
 from colorama import Style, Fore, Back
 
 # SETTINGS
-VERSION = "1.5"
+VERSION = os.getenv("RIMWORLD_VERSION")
 
 async def individual_mod(mod,steam_mod,about):
     def read_li(atr):
@@ -76,6 +76,8 @@ async def individual_mod(mod,steam_mod,about):
             time_downloaded_file.write_text("0")
             d["time_downloaded"] = "0"
     else:
+        if "1.5" not in d["supportedVersions"]:
+            d["supportedVersions"].append("1.5")
         d["time_downloaded"] = "0"
         d['time_first_downloaded'] = "0"
     

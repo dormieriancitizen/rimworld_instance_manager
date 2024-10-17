@@ -36,6 +36,8 @@ def generate_modlist(instance):
     source_mods  = fetch.source_mods_list()
     mods = remove_duplicate_ids(get_id_list(instance))
 
+    print(f"Parsing modlist for {len(mods)} mods")
+
     modd = meta.mod_metadata()
 
     missing_mod_list = []
@@ -129,7 +131,7 @@ def downloadMods(mods,regen_mods=False):
         encodes = []
         for mod in mods:
             encodes.append(dds_encode(f"active/fresh/{mod}"))
-        print([encode.wait() for encode in encodes])
+        [encode.wait() for encode in encodes]
 
     # Regenerate the metadata and return the fresh list
     if regen_mods:

@@ -78,20 +78,20 @@ def cli_update():
             if "Already up to date" not in stdout:
                 # Do something if the output is not "Already up to date"
                 print(f"GIT mod {modd[mod]["graphical_name"]} has been updated.")
-                to_update[mod] = "GIT"
+                # to_update[mod] = {"source": "GIT"}
 
     print(f"{len(to_update)} mods were out of date")
 
     if to_update:
         if click.confirm("Download steam mods now?"):
-            mod_handler.downloadMods([mod for mod in to_update if to_update[mod]["source"]=="STEAM"],regen_mods=False)
+            mod_handler.downloadMods(to_update,regen_mods=False)
     else:
         print("No mods detected out of date.")
 
 @cli.command("stats")
 @click.argument("choice",nargs = -1)    
 def cli_mods_stats(choice):
-    options = ["authors","subscribers","size","time","dependencies"]
+    options = ["authors","subscribers","size","time","dependencies","C#"]
 
     if len(choice) > 1:
         print("Please pass 0 or 1 choice")
@@ -107,9 +107,14 @@ def cli_mods_stats(choice):
         if choice not in options:
             print("Option not valid")
             return
-    
+
+    if click.prompt("Prune by instance?"):
+        modlist = mod_handler.get_id_list(prompt_instance_name())
+    else:
+        modlist = None
+
     if choice == "authors":
-        modd = meta.mod_metadata()
+        modd = meta.mod_metadata(prune_by=modlist)
         authors = {}
         for d in modd:
             if modd[d]["author"]:
@@ -134,7 +139,7 @@ def cli_mods_stats(choice):
 
         print("\n".join([modd[mod]["graphical_name"] for mod in authors[author]]))
     elif choice == "dependencies":
-        modd = meta.mod_metadata(include_ludeon=True)
+        modd = meta.mod_metadata(include_ludeon=True,prune_by=modlist)
         deps = {}
         
         for d in modd:
@@ -164,14 +169,19 @@ def cli_mods_stats(choice):
         ))
         
     elif choice == "subscribers":
-        modd = meta.mod_metadata(sort_by="subs")
+        modd = meta.mod_metadata(sort_by="subs",prune_by=modlist)
         print("".join([f"{modd[mod]['graphical_name']} has {modd[mod]['subs']} subscribers \n" for mod in modd]))
     elif choice == "size":
-        modd = meta.mod_metadata(sort_by="size")
+        modd = meta.mod_metadata(sort_by="size",prune_by=modlist)
         print("".join([f"{modd[mod]["graphical_name"]} is {humanize.naturalsize(modd[mod]["size"], binary=True)} \n" for mod in modd]))
     elif choice == "time":
-        modd = meta.mod_metadata(sort_by="time_created")
+        modd = meta.mod_metadata(sort_by="time_created",prune_by=modlist)
         print("".join([f"{modd[mod]["graphical_name"]} was made at {datetime.fromtimestamp(int(modd[mod]["time_created"])/1000).strftime('%Y-%m-%d %H:%M:%S')}\n" for mod in modd]))
+    elif choice == "C#":
+        modd = meta.mod_metadata(sort_by="size",prune_by=modlist)
+        print("".join([f"{"XML" if modd[mod]["xml_only"] else "C#"}: {modd[mod]["graphical_name"]}\n" for mod in modd]))
+        xml_count = len([mod for mod in modd if not modd[mod]["xml_only"]])
+        print(f"{xml_count}/{len(modlist)} xml mods")
 
 @click.argument("choice",nargs = -1)    
 @cli.command("rentry")
@@ -221,6 +231,8 @@ def reentry_manager(choice):
         print(f"{Style.DIM}Generated rentry for {i} mods in {time.time()-start_time}{Style.RESET_ALL}")
 
         start_time = time.time()
+        # with open("temp","w") as f:
+        #     f.write(ren)
         rentry.upload(ren)
         print(f"{Style.DIM}Uploaded in {time.time()-start_time}{Style.RESET_ALL}")
 
