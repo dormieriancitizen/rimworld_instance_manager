@@ -28,8 +28,8 @@ def compile_rentry(modd):
         "\nMods not from the current version are marked in red"
         f"\n!!! note Mod list length: `{len(modd)}`\n"
         "\n***"
-        "\nMod Name | Info"
-        "\n------ | ------:"
+        "\n# | Mod Name | Info"
+        "\n:-: | ------ | :------:"
 
     )
 
@@ -59,12 +59,16 @@ def compile_rentry(modd):
         #     pass
 
         # Add the index
-        line += str(count) + '. '
+        line += str(count) + '.|'
 
         if modd[mod]["source"] == "STEAM":
             pfid = modd[mod]["pfid"]
         if modd[mod]["source"] == "LUDEON":
             pfid = "https://raw.githubusercontent.com/dormieriancitizen/rimworld_instance_manager/refs/heads/main/resources/ludeon-studios.png"
+        if modd[mod]["source"] == "GIT":
+            pfid = "https://raw.githubusercontent.com/dormieriancitizen/rimworld_instance_manager/refs/heads/main/resources/github-banner.png"
+        if modd[mod]["source"] == "LOCAL":
+            pfid = "https://raw.githubusercontent.com/dormieriancitizen/rimworld_instance_manager/refs/heads/main/resources/local-banner.png"
 
         if pfid:
             # Image
