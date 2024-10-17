@@ -64,7 +64,7 @@ def compile_rentry(modd):
         if modd[mod]["source"] == "STEAM":
             pfid = modd[mod]["pfid"]
         if modd[mod]["source"] == "LUDEON":
-            pfid = "https://ludeon.com/blog/wp-content/themes/ludeon/images/ludeon-studios-orange.png"
+            pfid = "https://raw.githubusercontent.com/dormieriancitizen/rimworld_instance_manager/refs/heads/main/resources/ludeon-studios.png"
 
         if pfid:
             # Image
