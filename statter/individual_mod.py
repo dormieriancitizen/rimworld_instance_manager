@@ -76,8 +76,8 @@ async def individual_mod(mod,steam_mod,about):
             time_downloaded_file.write_text("0")
             d["time_downloaded"] = "0"
     else:
-        if "1.5" not in d["supportedVersions"]:
-            d["supportedVersions"].append("1.5")
+        if VERSION not in d["supportedVersions"]:
+            d["supportedVersions"].append(VERSION)
         d["time_downloaded"] = "0"
         d['time_first_downloaded'] = "0"
     

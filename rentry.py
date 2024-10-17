@@ -24,16 +24,21 @@ def compile_rentry(modd):
         f"# RimWorld Mod List: {len(modd)} mods       ![](https://github.com/RimSort/RimSort/blob/main/docs/rentry_preview.png?raw=true)"
         "\nCreated with a bad python script with a lot of borrowed code from RimSort"
         f"\nMod list was created for game version: {Path(getenv('GAME_PATH')+'Version.txt').read_text()}"
-        "\n!!! info Local mods are marked as yellow labels with packageid in brackets."
-        "\n!!! info Mods not from the current version are marked in red"
+        "\n\nLocal mods are marked as yellow labels with packageid in brackets."
+        "\nMods not from the current version are marked in red"
         f"\n!!! note Mod list length: `{len(modd)}`\n"
         "\n***"
+        "\nMod Name | Info"
+        "\n------ | ------:"
 
     )
 
     count = 0
 
     for mod in modd:
+        pfid = ""
+        line = ""
+
         count += 1
         name = modd[mod]["name"]
 
@@ -41,32 +46,41 @@ def compile_rentry(modd):
 
         pid = modd[mod]["pid"]
 
-        report += "\n"
+        line += "\n"
         package_id_string = "{packageid: " + pid + "}"
 
-        if getenv("RIMWORLD_VERSION") not in modd[mod]["supportedVersions"]:
-            report += "\n!!! danger "
-        elif modd[mod]["source"] in ("LOCAL","GIT"):
-            report += "\n!!! warning "
-        elif modd[mod]["source"] == "LUDEON":
-            report += "\n!!! info "
-        elif modd[mod]["source"] == "STEAM":
-            pass
+        # if getenv("RIMWORLD_VERSION") not in modd[mod]["supportedVersions"]:
+        #     line += "\n!!! danger "
+        # elif modd[mod]["source"] in ("LOCAL","GIT"):
+        #     line += ""
+        # elif modd[mod]["source"] == "LUDEON":
+        #     line += "\n!!! info "
+        # elif modd[mod]["source"] == "STEAM":
+        #     pass
 
         # Add the index
-        report += str(count) + '. '
+        line += str(count) + '. '
 
         if modd[mod]["source"] == "STEAM":
+            pfid = modd[mod]["pfid"]
+        if modd[mod]["source"] == "LUDEON":
+            pfid = "https://ludeon.com/blog/wp-content/themes/ludeon/images/ludeon-studios-orange.png"
+
+        if pfid:
             # Image
-            report += f"![{pid}]({modd[mod]["pfid"]})"+" "
+            line += f"![{pid}]({pfid})"+"{100px:56px} "
+        
 
         if not url:
-            report += f"{name}"  # f-strings don't support the squilly brackets
+            line += f"{name}"  # f-strings don't support the squilly brackets
         else:
-            report += f"[{name}]({url})"
+            line += f"[{name}]({url})"
 
         if modd[mod]["source"] != "STEAM":
-            report += " "+package_id_string       
+            line += " "+package_id_string   
+
+        line += "| mod"
+        report += line
 
     return report
 
