@@ -231,9 +231,9 @@ def reentry_manager(choice):
         print(f"{Style.DIM}Generated rentry for {i} mods in {time.time()-start_time}{Style.RESET_ALL}")
 
         start_time = time.time()
-        with open("temp","w") as f:
-            f.write(ren)
-        # rentry.upload(ren)
+        # with open("temp","w") as f:
+        #     f.write(ren)
+        rentry.upload(ren)
         print(f"{Style.DIM}Uploaded in {time.time()-start_time}{Style.RESET_ALL}")
 
     elif choice == "check for slow mods":

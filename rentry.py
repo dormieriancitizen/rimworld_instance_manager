@@ -76,14 +76,14 @@ def compile_rentry(modd):
         
 
         if not url:
-            line += f"{name}"  # f-strings don't support the squilly brackets
+            line += f" {name}"  # f-strings don't support the squilly brackets
         else:
-            line += f"[{name}]({url})"
+            line += f" [{name}]({url})"
 
-        if modd[mod]["source"] != "STEAM":
+        if modd[mod]["source"] == "LOCAL":
             line += " "+package_id_string   
 
-        line += "| mod"
+        line += f"| {"XML" if modd[mod]["xml_only"] else "C#"}"
         report += line
 
     return report

@@ -4,7 +4,7 @@ from pathlib import Path
 from colorama import Style, Fore, Back
 
 # SETTINGS
-VERSION = os.getenv("RIMWORLD_VERSION")
+VERSION = "1.5"
 
 async def individual_mod(mod,steam_mod,about):
     def read_li(atr):
@@ -90,6 +90,8 @@ async def individual_mod(mod,steam_mod,about):
         if not assemblies_path.exists():
             if (mod_path / f"v{VERSION}" / "Assemblies").is_dir():
                 assemblies_path = mod_path / f"v{VERSION}" / "Assemblies"
+            if (mod_path / "Assemblies").is_dir():
+                assemblies_path = mod_path / "Assemblies"
             
 
         if os.path.isdir(assemblies_path):
