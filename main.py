@@ -1,5 +1,8 @@
 #!/home/dormierian/Games/rimworld/instance_manager/bin/python
 
+if __name__ != "__main__":
+    raise Exception("")
+
 import os, click, humanize, regex, csv, time
 from pathlib import Path
 
