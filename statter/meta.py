@@ -4,8 +4,6 @@ import json, click, time, xmltodict, os, asyncio
 from logger import Logger as log
 from statter.individual_mod import individual_mod
 
-from colorama import Style, Fore, Back
-
 dlcs = ("Core","Biotech","Ideology","Royalty","Anomaly")
 
 async def mod_about(mod, path=None):

@@ -10,8 +10,6 @@ from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from InquirerPy.separator import Separator
 
-from colorama import Fore, Back, Style
-
 from logger import Logger as log
 
 from datetime import datetime

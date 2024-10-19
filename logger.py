@@ -1,6 +1,5 @@
-from colorama import Fore, Back, Style
-from colorama import init as colorama_init
-colorama_init()
+from colorama import Fore, Back, Style, init
+init()
 
 class Singleton(type):
     _instances = {}
@@ -18,7 +17,7 @@ class Logger(object):
         print(log)
 
     def error(self,log):
-        print(log)
+        print(Fore.RED+log+Style.RESET_ALL)
 
     def warn(self,log):
-        print(log)
+        print(Fore.YELLOW+log+Style.RESET_ALL)

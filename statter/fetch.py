@@ -1,6 +1,6 @@
+from logger import Logger as log
 
 import click, requests, json, time, subprocess, os, asyncio, functools
-from colorama import Style
 
 async def fetch_steam_info(fetch=None,mods=None):
     if fetch is None:
@@ -35,7 +35,7 @@ async def fetch_steam_info(fetch=None,mods=None):
     else:
         with open("data/response.json", "r") as f:
             steamd = json.load(f)
-    print(f"{Style.DIM}{"Fetched from steam in " if fetch else "Loaded from steam response file in "}{time.time()-start_time}{Style.RESET_ALL}")
+    log().info(f"{"Fetched from steam in " if fetch else "Loaded from steam response file in "}{time.time()-start_time}")
 
     # Reorganise the response by each ID
     steamd = {mod["publishedfileid"]: mod for mod in steamd["response"]["publishedfiledetails"]}

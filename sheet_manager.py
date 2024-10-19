@@ -1,7 +1,8 @@
 import gspread, os, time
-from dotenv import load_dotenv
 
-from colorama import Style
+from logger import Logger as log
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -25,8 +26,7 @@ def get_instances():
 
 def get_slow_mods():
     gc = gspread.service_account(filename='data/service_account.json')
-    # Pregazer's Slow Mod List
-    sh = gc.open_by_key("14xvMkf9zo1EjMMNkRNCWoE8QWVHQWd11v69tuyXT10A")
+    sh = gc.open_by_key("14xvMkf9zo1EjMMNkRNCWoE8QWVHQWd11v69tuyXT10A")    # Pregazer's Slow Mod List
     slow_mods = sh.worksheet("Slow Mods").col_values(2)
     slow_mods.pop()
     return slow_mods
