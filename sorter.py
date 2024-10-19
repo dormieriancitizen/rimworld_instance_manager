@@ -1,5 +1,6 @@
 from collections import Counter
 
+from logger import Logger as log
 from statter import meta
 
 def find_circular_dependencies(nodes):
@@ -34,7 +35,7 @@ def find_circular_dependencies(nodes):
 
     if cycles:
         for cycle in cycles:
-            print(f"Circular dependency detected: {' -> '.join(cycle)}")
+            log().error(f"Circular dependency detected: {' -> '.join(cycle)}")
 
 def topological_sort(nodes,modd):
     """
@@ -79,7 +80,7 @@ def topological_sort(nodes,modd):
 
     # check for circular dependencies
     if len(final_order) != len(nodes):
-        print("Found circular dependencies.")
+        log().error("Found circular dependencies.")
         find_circular_dependencies(nodes)
         raise Exception("Circular dependency found.")
     

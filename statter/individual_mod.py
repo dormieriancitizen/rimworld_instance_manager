@@ -2,6 +2,7 @@ import subprocess, time, os
 from pathlib import Path
 
 from colorama import Style, Fore, Back
+from logger import Logger as log
 
 # SETTINGS
 VERSION = "1.5"
@@ -63,7 +64,7 @@ async def individual_mod(mod,steam_mod,about):
         if time_first_downloaded_file.exists():
             d["time_first_downloaded"] = time_first_downloaded_file.read_text()
         else:
-            print(f"{d['source']} mod {d["name"]} has no inital download time. Setting to now.")
+            log().warn(f"{d['source']} mod {d["name"]} has no inital download time. Setting to now.")
             now = str(time.time() * 1000)
             time_first_downloaded_file.write_text(now)
             d["time_first_downloaded"] = now
@@ -72,7 +73,7 @@ async def individual_mod(mod,steam_mod,about):
         if time_downloaded_file.exists():
             d["time_downloaded"] = time_downloaded_file.read_text()
         else:
-            print(f"{d['source']} mod {d["name"]} has no current download time. Setting to 0{" (will be downloaded again on next update)." if d["source"] == "STEAM" else "."}")
+            log().warn(f"{d['source']} mod {d["name"]} has no current download time. Setting to 0{" (will be downloaded again on next update)." if d["source"] == "STEAM" else "."}")
             time_downloaded_file.write_text("0")
             d["time_downloaded"] = "0"
     else:

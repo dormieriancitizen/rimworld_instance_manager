@@ -1,7 +1,7 @@
-#!/home/dormierian/Games/rimworld/instance_manager/bin/python
+#!/home/dormierian/Games/rimman/bin/python
 
 if __name__ != "__main__":
-    raise Exception("")
+    raise 
 
 import os, click, humanize, regex, csv, time
 from pathlib import Path
@@ -11,8 +11,8 @@ from InquirerPy.base.control import Choice
 from InquirerPy.separator import Separator
 
 from colorama import Fore, Back, Style
-from colorama import init as colorama_init
-colorama_init()
+
+from logger import Logger as log
 
 from datetime import datetime
 # from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend, copy_instance_sheet
@@ -21,7 +21,7 @@ import mod_handler, rentry, sorter, sheet_manager
 
 from statter import meta, fetch
 
-os.chdir("/home/dormierian/Games/rimworld/instance_manager")
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 @click.group
 def cli():
@@ -41,7 +41,7 @@ def prompt_instance_name():
                 cached_instance_name = instance_cache.readlines()[0]
         if click.confirm(f"Use cached instance {cached_instance_name}?"):
             instance_name = cached_instance_name
-            print(f"Using cached instance {instance_name}")
+            log().log(f"Using cached instance {instance_name}")
     if not instance_name:
         with open(f"cached_instance_name","w") as instance_cache:            
             instance_name = inquirer.select(
@@ -69,7 +69,7 @@ def cli_update():
             timeDownloaded = modd[mod]["time_downloaded"]
             timeUpdated = modd[mod]["time_updated"]
             if timeDownloaded < timeUpdated:
-                print(f"STEAM mod {modd[mod]["graphical_name"]} is out of date.")
+                log().log(f"STEAM mod {modd[mod]["graphical_name"]} is out of date.")
                 to_update[mod] = {}
                 to_update[mod]["source"] = "STEAM"
         if modd[mod]["source"] == "GIT":
@@ -80,16 +80,16 @@ def cli_update():
             stdout = stdout.decode('utf-8')
             if "Already up to date" not in stdout:
                 # Do something if the output is not "Already up to date"
-                print(f"GIT mod {modd[mod]["graphical_name"]} has been updated.")
+                log().log(f"GIT mod {modd[mod]["graphical_name"]} has been updated.")
                 # to_update[mod] = {"source": "GIT"}
 
-    print(f"{len(to_update)} mods were out of date")
+    log().info(f"{len(to_update)} mods were out of date")
 
     if to_update:
         if click.confirm("Download steam mods now?"):
             mod_handler.downloadMods(to_update,regen_mods=False)
     else:
-        print("No mods detected out of date.")
+        log().log("No mods detected out of date.")
 
 @cli.command("stats")
 @click.argument("choice",nargs = -1)    
@@ -97,7 +97,7 @@ def cli_mods_stats(choice):
     options = ["authors","subscribers","size","time","dependencies","C#"]
 
     if len(choice) > 1:
-        print("Please pass 0 or 1 choice")
+        log().log("Please pass 0 or 1 choice")
         return
     elif len(choice) == 0:
         choice = inquirer.select(
@@ -108,13 +108,13 @@ def cli_mods_stats(choice):
     else:
         choice = choice[0]
         if choice not in options:
-            print("Option not valid")
+            log().warn("Option not valid")
             return
 
-    if click.prompt("Prune by instance?"):
+    if click.confirm("Prune by instance?"):
         modlist = mod_handler.get_id_list(prompt_instance_name())
     else:
-        modlist = None
+        modlist = fetch.source_mods_list()
 
     if choice == "authors":
         modd = meta.mod_metadata(prune_by=modlist)
@@ -132,7 +132,6 @@ def cli_mods_stats(choice):
         # Sort authors by the number of mods they made (descending order)
         authors = {k: v for k, v in sorted(authors.items(), key=lambda item: len(item[1]), reverse=True)}
 
-        # Print the sorted list of authors with mod counts
         choices = [Choice(value=author,name=f"{author}: {len(authors[author])} mods") for author in authors]
         author = inquirer.select(
             message="Choose author",
@@ -140,7 +139,7 @@ def cli_mods_stats(choice):
             pointer=">",
         ).execute()
 
-        print("\n".join([modd[mod]["graphical_name"] for mod in authors[author]]))
+        log().log("\n".join([modd[mod]["graphical_name"] for mod in authors[author]]))
     elif choice == "dependencies":
         modd = meta.mod_metadata(include_ludeon=True,prune_by=modlist)
         deps = {}
@@ -158,7 +157,6 @@ def cli_mods_stats(choice):
 
         modd_by_pid = {modd[x]["pid"]: modd[x] for x in modd}
 
-        # Print the sorted list of authors with mod counts
         choices = [Choice(value=dep,name=f"{modd_by_pid[dep]["name"] if dep in modd_by_pid else dep} has {len(deps[dep])} dependents") for dep in deps]
 
         dep = inquirer.select(
@@ -167,24 +165,24 @@ def cli_mods_stats(choice):
             pointer=">",
         ).execute()
 
-        print("\n".join(
+        log().log("\n".join(
             [modd[dep]["graphical_name"] for dep in deps[dep]]
         ))
         
     elif choice == "subscribers":
         modd = meta.mod_metadata(sort_by="subs",prune_by=modlist)
-        print("".join([f"{modd[mod]['graphical_name']} has {modd[mod]['subs']} subscribers \n" for mod in modd]))
+        log().log("".join([f"{modd[mod]['graphical_name']} has {modd[mod]['subs']} subscribers \n" for mod in modd]))
     elif choice == "size":
         modd = meta.mod_metadata(sort_by="size",prune_by=modlist)
-        print("".join([f"{modd[mod]["graphical_name"]} is {humanize.naturalsize(modd[mod]["size"], binary=True)} \n" for mod in modd]))
+        log().log("".join([f"{modd[mod]["graphical_name"]} is {humanize.naturalsize(modd[mod]["size"], binary=True)} \n" for mod in modd]))
     elif choice == "time":
         modd = meta.mod_metadata(sort_by="time_created",prune_by=modlist)
-        print("".join([f"{modd[mod]["graphical_name"]} was made at {datetime.fromtimestamp(int(modd[mod]["time_created"])/1000).strftime('%Y-%m-%d %H:%M:%S')}\n" for mod in modd]))
+        log().log("".join([f"{modd[mod]["graphical_name"]} was made at {datetime.fromtimestamp(int(modd[mod]["time_created"])/1000).strftime('%Y-%m-%d %H:%M:%S')}\n" for mod in modd]))
     elif choice == "C#":
         modd = meta.mod_metadata(sort_by="size",prune_by=modlist)
-        print("".join([f"{"XML" if modd[mod]["xml_only"] else "C#"}: {modd[mod]["graphical_name"]}\n" for mod in modd]))
+        log().log("".join([f"{"XML" if modd[mod]["xml_only"] else "C#"}: {modd[mod]["graphical_name"]}\n" for mod in modd]))
         xml_count = len([mod for mod in modd if not modd[mod]["xml_only"]])
-        print(f"{xml_count}/{len(modlist)} xml mods")
+        log().log(f"{xml_count}/{len(modlist)} xml mods")
 
 @click.argument("choice",nargs = -1)    
 @cli.command("rentry")
@@ -192,7 +190,7 @@ def reentry_manager(choice):
     options = ["generate","load","compare","slow_mods"]
 
     if len(choice) > 1:
-        print("Please pass 0 or 1 choice")
+        log().log("Please pass 0 or 1 choice")
         return
     elif len(choice) == 0:
         choice = inquirer.select(
@@ -203,7 +201,7 @@ def reentry_manager(choice):
     else:
         choice = choice[0]
         if choice not in options:
-            print("Option not valid")
+            log().warn("Option not valid")
             return
 
     if choice == "load":
@@ -212,14 +210,14 @@ def reentry_manager(choice):
 
         modd = meta.mod_metadata(index_by="pid",include_ludeon=True)
         notin = [x for x in ren if x not in modd]
-        print("\n Missing Mod: ".join(notin))
+        log().log("\n Missing Mod: ".join(notin))
     elif choice == "compare":
         url = click.prompt("Rentry Url?")
         ren = rentry.import_rentry(url)
 
         modd = meta.mod_metadata(index_by="pid",include_ludeon=True,prune_by=sheet_manager.get_modlist_info(prompt_instance_name()))
         yesin = [modd[x]["name"] for x in ren if x in modd]
-        print("\n".join(yesin))     
+        log().log("\n".join(yesin))     
     elif choice == "generate":
         instance_name = prompt_instance_name()
         mods = mod_handler.get_id_list(instance_name)
@@ -231,20 +229,20 @@ def reentry_manager(choice):
             modd[mod]["sort"] = i
         start_time = time.time()
         ren = rentry.compile_rentry(modd)
-        print(f"{Style.DIM}Generated rentry for {i} mods in {time.time()-start_time}{Style.RESET_ALL}")
+        log().info(f"Generated rentry for {i} mods in {time.time()-start_time}")
 
         start_time = time.time()
         # with open("temp","w") as f:
         #     f.write(ren)
         rentry.upload(ren)
-        print(f"{Style.DIM}Uploaded in {time.time()-start_time}{Style.RESET_ALL}")
+        log().info(f"Uploaded in {time.time()-start_time}")
 
     elif choice == "check for slow mods":
         url = click.prompt("Rentry Url?")
         modlist = rentry.import_rentry(url)
         slow_mods = sheet_manager.get_slow_mods()
 
-        print([x for x in modlist if x in slow_mods])
+        log().info([x for x in modlist if x in slow_mods])
 
 @cli.command("encode")
 def encode():
@@ -286,11 +284,11 @@ def cli_add_mods():
                 if id_match:
                     mod_id = id_match.group()
                     if mod_id in modd or mod_id in to_download:
-                        print(f"{mod_id} already downloaded or in buffer")
+                        log().warn(f"{mod_id} already downloaded or in buffer")
                         continue
                     to_download[mod_id] = {"source": "STEAM"}
                 else:
-                    print("Couldn't get id, try again")
+                    log().warn("Couldn't get id, try again")
                     continue
             if "github.com" in line:
                 mod_id = regex.search(r"(?<=https://github.com/.*?/)(.*)(?=/)",line)
@@ -298,11 +296,11 @@ def cli_add_mods():
                 if mod_id:
                     mod_id = mod_id.group()
                 else:
-                    print(f"Didn't match anything in {line}")
+                    log().warn(f"Didn't match anything in {line}")
                     continue
 
                 if mod_id in modd or mod_id in to_download:
-                        print(f"{mod_id} already downloaded or in buffer")
+                        log().warn(f"{mod_id} already downloaded or in buffer")
 
                 to_download[mod_id] = {"source": "GITHUB", "download_link": line}
 
@@ -332,9 +330,9 @@ def cli_make_instance():
         source = "Instance Template"
     
     if sheet_manager.copy_instance_sheet(source,instance_name):
-        print("Sheet copied")
+        log().log("Sheet copied")
     else:
-        print("Sheet already exists!")
+        log().warn("Sheet already exists!")
     
     os.mkdir("instances/"+instance_name)
 
@@ -345,7 +343,7 @@ def cli_make_instance():
 @click.argument("instance",nargs = -1)
 def cli_manage_instance(instance):
     if len(instance) > 1:
-        print("Please pass 0 or 1 instance")
+        log().log("Please pass 0 or 1 instance")
         return
     elif len(instance) == 0:
         instance = prompt_instance_name()
@@ -370,10 +368,8 @@ def cli_manage_instance(instance):
     ).execute()
 
     to_enable = [mod for mod in response if mod not in instance_list]
-    print(to_enable)
 
     to_disable = [mod for mod in instance_list if mod not in response]
-    print(to_disable)
 
 if __name__ == '__main__':
     cli()

@@ -4,13 +4,15 @@ from helpers import *
 from pathlib import Path
 import sorter
 
+from logger import Logger as log
+
 from statter import meta, fetch
 
 def generate_modlist(instance):
     def remove_duplicate_ids(mods):
         mods, dupes = duplicate_check(mods)
         if dupes:
-            print("\n".join([f"Duplicate: {x}. Removed." for x in dupes]))
+            log().warn("\n".join([f"Duplicate: {x}. Removed." for x in dupes]))
         return mods
 
     def check_deps():
@@ -26,17 +28,17 @@ def generate_modlist(instance):
                 if not dep in modd_by_pid:
                     if dep in all_modd_by_pid:
                         if all_modd_by_pid[dep]["id"] not in mods:
-                            print(f"{modd[d]["graphical_name"]} depends on {dep}, but is a known PID. Adding to modlist")
+                            log().warn(f"{modd[d]["graphical_name"]} depends on {dep}, but is a known PID. Adding to modlist")
                             mods.append(all_modd_by_pid[dep]["id"])
                     else:
-                        print(f"Missing unknown dependency {dep}")
+                        log().error(f"Missing unknown dependency {dep}")
         return mods
 
     # Validate modlist
     source_mods  = fetch.source_mods_list()
     mods = remove_duplicate_ids(get_id_list(instance))
 
-    print(f"Parsing modlist for {len(mods)} mods")
+    log().log(f"Parsing modlist for {len(mods)} mods")
 
     modd = meta.mod_metadata()
 
@@ -46,11 +48,11 @@ def generate_modlist(instance):
             if mod.isnumeric():
                 missing_mod_list.append(mod)
             else:
-                print(f"Missing mod {mod}, but is not a steam mod")
+                log().warn(f"Missing mod {mod}, but is not a steam mod")
 
     if missing_mod_list:
-        print("Missing mods detected. Add then using rimman add_mods")
-        print(missing_mod_list)
+        log().error("Missing mods detected. Add then using rimman add_mods")
+        log().error(missing_mod_list)
         return
 
     dupes = []
@@ -58,16 +60,15 @@ def generate_modlist(instance):
     pids, dupes = duplicate_check([pruned_modd[d]["pid"] for d in pruned_modd])
 
     if dupes:
-        print("\n".join([f"Duplicate PID! {x}" for x in dupes]))
-        print("Please fix!")
+        log().error("\n".join([f"Duplicate PID! {x}" for x in dupes])+"\nPlease fix!")
         return    
 
     check_deps()
 
-    print(f"Modlist Length: {len(mods)}")
+    log().log(f"Modlist Length: {len(mods)}")
     link_modlist(mods)
 
-    print("Sorting mods")
+    log().log("Sorting mods")
     order = sorter.sorter(mods)
 
     with open(Path.home() / ".config" /"unity3d" / "Ludeon Studios" / "RimWorld by Ludeon Studios" / "Config" / "ModsConfig.xml","w") as f:
@@ -75,7 +76,7 @@ def generate_modlist(instance):
 
 def link_modlist(mods):
 
-    print("Clearing active mod folder")
+    log().info("Clearing active mod folder")
     empty_folder("active/mods")
     source_mods  = fetch.source_mods_list()
     
@@ -84,9 +85,9 @@ def link_modlist(mods):
             if mod in source_mods:
                 os.symlink(os.path.abspath(f"source_mods/{mod}"),f"active/mods/{mod}")
             else:
-                print(f"Missing Mod. Download failed?: {mod}")
+                log().warn(f"Missing Mod. Download failed?: {mod}")
         except FileExistsError:
-            print(f"Duplicate Mod: {mod}. This should never happen!")
+            log().error(f"Duplicate Mod: {mod}. This should never happen!")
 
 def downloadMods(mods,regen_mods=False):
     # pattern = r"(?<=https://github.com/.*?/)(.*)(?=/)"
@@ -118,7 +119,7 @@ def downloadMods(mods,regen_mods=False):
             command = " ".join(["git","-C", "source_mods/", "clone", mod])
             dls.append(subprocess.Popen(command, shell=True))
     
-    print([dl.wait() for dl in dls])
+    [dl.wait() for dl in dls]
 
     set_download_time(mods)
 

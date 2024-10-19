@@ -5,6 +5,8 @@ from urllib.parse import urlparse, unquote
 from pathlib import Path
 from os import getenv
 
+from logger import Logger as log
+
 def import_rentry(rentry_url):
     r = unquote(requests.get(rentry_url).text)
 
@@ -95,4 +97,4 @@ def upload(text):
     if rentry_uploader.url and host and host.endswith("rentry.co"):  # type: ignore
         pass
     else:
-        print("Failed to upload")
+        log().error("Failed to upload")

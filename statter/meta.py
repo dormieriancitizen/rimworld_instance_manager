@@ -1,6 +1,7 @@
 from statter import fetch
 import json, click, time, xmltodict, os, asyncio
 
+from logger import Logger as log
 from statter.individual_mod import individual_mod
 
 from colorama import Style, Fore, Back
@@ -14,7 +15,7 @@ async def mod_about(mod, path=None):
         elif os.path.exists(f"source_mods/{mod}/About/about.xml"):
             path = f"source_mods/{mod}/About/about.xml"
         else:
-            print(f"Could not find path for {mod}, was passed {path}")
+            log().error(f"Could not find path for {mod}, was passed {path}")
     else:
         if not os.path.exists(path):
             raise Exception(f"Passed nonexistent path {path}")
@@ -24,12 +25,11 @@ async def mod_about(mod, path=None):
             try:
                 return xmltodict.parse(aboutxml, dict_constructor=dict)
             except xmltodict.xml.parsers.expat.ExpatError:
+                log().error(f"Expat error in "+path)
                 return {}
-    except TypeError as error:
-        print(path,mod)
-        raise Exception("Path is somehow still none?")
+    
     except FileNotFoundError:
-        print(f"Unknown mod: "+mod)
+        log().error(f"Unknown mod: "+mod)
         raise Exception(f"Passed nonexistent path {path}")
 
 async def load_mod_metadata():
@@ -41,7 +41,7 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,in
         if os.path.exists("data/modd_dirty") or always_prompt:
             fetch = click.confirm("Generate new metadata?")
         else:
-            print("Data is not marked dirty, sending cached")
+            log().info("Data is not marked dirty, sending cached")
             fetch = False
     
     if fetch:
@@ -80,7 +80,7 @@ async def load_abouts(mods):
         else:
             abouts[mod] = None
     
-    print(f"{Style.DIM}Loaded about.xmls in {time.time()-time_to_about}{Style.RESET_ALL}")
+    log().info(f"Loaded about.xmls in {time.time()-time_to_about}")
 
     return abouts
 
@@ -119,12 +119,12 @@ async def gen_mod_metadata(steam_fetch=False,mods=None):
     else:
         modd = partial_modd
 
-    print(f"{Style.DIM}Processed info in {time.time()-time_to_generate}{Style.RESET_ALL}")
+    log().info(f"Processed info in {time.time()-time_to_generate}")
 
     with open("data/modd.json","w") as f:
         json.dump(modd,f)
     
-    print(f"{Style.DIM}Generated{" partial" if update else ""} metadata for {len(mods)} mods in {time.time()-start_time}{Style.RESET_ALL}")
+    log().info(f"Generated{" partial" if update else ""} metadata for {len(mods)} mods in {time.time()-start_time}")
     return modd
 
 def instance_metadata(modlist):

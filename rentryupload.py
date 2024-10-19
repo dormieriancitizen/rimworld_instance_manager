@@ -1,5 +1,7 @@
 import json, requests
 
+from logger import Logger as log
+
 # Taken wholly from RimPy
 BASE_URL = "https://rentry.co"
 BASE_URL_RAW = f"{BASE_URL}/raw"
@@ -56,7 +58,7 @@ class RentryUpload:
                 self.url = response["url"]
         finally:
             if self.upload_success:
-                print(f"RentryUpload successfully uploaded data! Url: {self.url}, Edit code: {response['edit_code']}")
+                log().log(f"RentryUpload successfully uploaded data! Url: {self.url}\nEdit code: {response['edit_code']}")
 
     def handle_upload_failure(self, response: dict[str]) -> None:
         """
@@ -65,9 +67,9 @@ class RentryUpload:
         error_content = response.get("content", "Unknown")
         errors = response.get("errors", "").split(".")
         for error in errors:
-            print(error)
+            log().error(error)
 
-        print("RentryUpload failed!")
+        log().error("RentryUpload failed!")
 
     def new(self, text: str):
         """

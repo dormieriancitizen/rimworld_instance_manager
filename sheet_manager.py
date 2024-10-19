@@ -63,4 +63,4 @@ def push_to_backend(modd, instance, instance_name):
     sh = get_spreadsheet()
     ws = sh.worksheet(instance_name)
     ws.update(to_push,"A:F")
-    print(f"{Style.DIM}Pushed to sheet in {time.time()-start_time}s{Style.RESET_ALL}")
+    log().info(f"Pushed to sheet in {time.time()-start_time}s")
