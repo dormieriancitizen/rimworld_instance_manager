@@ -30,7 +30,7 @@ def duplicate_check(tocheck):
     return nodupes, dupes
 
 
-def generate_modlist(instance):
+def generate_modlist(instance,mods):
     def remove_duplicate_ids(mods):
         mods, dupes = duplicate_check(mods)
         if dupes:
@@ -58,7 +58,6 @@ def generate_modlist(instance):
 
     # Validate modlist
     source_mods  = fetch.source_mods_list()
-    mods = remove_duplicate_ids(get_id_list(instance))
 
     log().log(f"Parsing modlist for {len(mods)} mods")
 
@@ -174,16 +173,6 @@ def set_download_time(mods, write_time=None):
 
 def dds_encode(path):
     return subprocess.Popen(f"./todds -f BC1 -af BC7 -on -vf -fs -r Textures -t -p {path}",shell=True)
-
-def get_id_list(instance):
-    mods = []
-
-    with open(f"instances/{instance}/modlist.csv","r") as instance_csv:
-        reader = csv.reader(instance_csv)
-        for row in reader:
-            mods=row
-    
-    return mods
 
 def search_folders(folder,search):
     results = []

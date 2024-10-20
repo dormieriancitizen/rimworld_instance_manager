@@ -60,7 +60,6 @@ def mod_metadata(always_prompt=False,regen=None,**kwargs):
     else:
         modd = asyncio.run(load_mod_metadata())
   
-    print(kwargs)
     return parse_modd(modd,kwargs)
 
 async def load_abouts(mods):

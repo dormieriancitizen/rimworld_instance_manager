@@ -14,22 +14,15 @@ from logger import Logger as log
 
 from datetime import datetime
 # from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend, copy_instance_sheet
-import mod_handler, rentry, sorter, sheet_manager
+import mod_handler, rentry, sorter
 
-from statter import meta, fetch
+from statter import meta, fetch, sheet_manager
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 @click.group
 def cli():
     pass
-
-def modlist_sheet_grab(instance,fetch=None):
-    if fetch is None:
-        fetch = click.confirm("Get modlist from sheet?")
-    if fetch:
-        with open(f"instances/{instance}/modlist.csv","w") as instance_csv:
-            instance_csv.write(sheet_manager.get_modlist_info(instance))
 
 def prompt_instance_name():
     instance_name = ""
@@ -53,8 +46,7 @@ def prompt_instance_name():
 @cli.command
 def modlist():
     instance_name = prompt_instance_name()    
-    modlist_sheet_grab(instance_name)
-    mod_handler.generate_modlist(instance_name)
+    mod_handler.generate_modlist(instance_name,fetch.get_modlist(instance_name))
 
 @cli.command("update")
 def cli_update():
@@ -108,7 +100,7 @@ def cli_mods_stats(choice):
             return
 
     if click.confirm("Prune by instance?"):
-        modlist = mod_handler.get_id_list(prompt_instance_name())
+        modlist = fetch.get_modlist(prompt_instance_name(),fetch=False)
     else:
         modlist = fetch.source_mods_list()
 
@@ -215,8 +207,7 @@ def reentry_manager(choice):
         yesin = [modd[x]["name"] for x in ren if x in modd]
         log().log("\n".join(yesin))     
     elif choice == "generate":
-        instance_name = prompt_instance_name()
-        mods = mod_handler.get_id_list(instance_name)
+        mods = fetch.get_modlist(prompt_instance_name(),fetch=False)
         modd = meta.mod_metadata(prune_by=mods,index_by="pid",include_ludeon=True)
         
         i = 0
@@ -252,7 +243,7 @@ def cli_modd():
 def sheet_push(instance_name=None):
     if not instance_name:
         instance_name = prompt_instance_name()
-    instance = mod_handler.get_id_list(instance_name)
+    instance = fetch.get_modlist(instance_name,fetch=False)
     modd = meta.mod_metadata(sort_by="time_first_downloaded") 
     sheet_manager.push_to_backend(modd,instance,instance_name)
 
@@ -264,7 +255,7 @@ def whenlastupdated():
 
 @cli.command("sort")
 def cli_sort_modlist():
-    sorter.sorter(mod_handler.get_id_list(prompt_instance_name()))
+    sorter.sorter(fetch.get_modlist(prompt_instance_name()))
 
 @cli.command("add_mods")
 def cli_add_mods():
@@ -348,8 +339,8 @@ def cli_manage_instance(instance):
     
     modd = meta.mod_metadata(sort_by="time_first_downloaded")
 
-    modlist_sheet_grab(instance)
-    instance_list = mod_handler.get_id_list(instance)
+    
+    instance_list = fetch.get_modlist(instance)
 
     choices = [
         Choice(name=modd[d]["name"],value=d,enabled=d in instance_list) 

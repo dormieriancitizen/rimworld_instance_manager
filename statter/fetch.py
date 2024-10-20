@@ -1,8 +1,9 @@
 from logger import Logger as log
+from statter import sheet_manager
 
-import click, requests, json, time, subprocess, os, asyncio, functools
+import click, requests, json, time, subprocess, os, asyncio, functools, csv
 
-async def fetch_steam_info(fetch=None,mods=None):
+async def steam_info(fetch=None,mods=None):
     if fetch is None:
         fetch = click.confirm("Fetch new mod info?")
 
@@ -62,3 +63,22 @@ def source_mods_list(steam_only=None):
     if steam_only:
         source_mods = [f for f in source_mods if is_steam_mod(f)]
     return source_mods
+
+def get_modlist(instance,fetch=None):
+    mods = []
+
+    if fetch is None:
+        fetch = click.confirm("Get modlist from sheet?")
+
+    if fetch:
+        mods = sheet_manager.get_modlist_info(instance)
+        with open(f"instances/{instance}/modlist.csv","w") as instance_csv:
+            instance_csv.write(mods)
+    else:
+        with open(f"instances/{instance}/modlist.csv","r") as instance_csv:
+            reader = csv.reader(instance_csv)
+            for row in reader:
+                mods=row
+                break
+    
+    return mods
