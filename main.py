@@ -3,7 +3,7 @@
 if __name__ != "__main__":
     raise 
 
-import os, click, humanize, regex, csv, time
+import os, click, humanize, regex, csv, time, subprocess
 from pathlib import Path
 
 from InquirerPy import inquirer
@@ -14,7 +14,6 @@ from logger import Logger as log
 
 from datetime import datetime
 # from sheet_manager import get_modlist_info, get_instances, get_slow_mods, push_to_backend, copy_instance_sheet
-from helpers import *
 import mod_handler, rentry, sorter, sheet_manager
 
 from statter import meta, fetch
@@ -77,7 +76,6 @@ def cli_update():
             # Decode the output from bytes to string
             stdout = stdout.decode('utf-8')
             if "Already up to date" not in stdout:
-                # Do something if the output is not "Already up to date"
                 log().log(f"GIT mod {modd[mod]["graphical_name"]} has been updated.")
                 # to_update[mod] = {"source": "GIT"}
 
@@ -248,7 +246,7 @@ def encode():
 
 @cli.command("modd")
 def cli_modd():
-    meta.mod_metadata(fetch=True)
+    meta.mod_metadata(regen=True)
 
 @cli.command("sheet_push")
 def sheet_push(instance_name=None):

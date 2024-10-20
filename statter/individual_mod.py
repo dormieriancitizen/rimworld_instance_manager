@@ -133,7 +133,6 @@ async def individual_mod(mod,steam_mod,about):
         else:
             # This is kind of slow, may change later.
             d["size"] = du(mod_path)
- 
 
     gname = ""
     if VERSION not in d["supportedVersions"]:

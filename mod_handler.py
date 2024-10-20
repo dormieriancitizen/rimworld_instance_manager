@@ -1,5 +1,4 @@
 import click, os, csv, time, subprocess, regex, asyncio
-from helpers import *
 
 from pathlib import Path
 import sorter
@@ -7,6 +6,29 @@ import sorter
 from logger import Logger as log
 
 from statter import meta, fetch
+
+def unlink_folder(folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            # elif os.path.isdir(file_path):
+            #     shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+def duplicate_check(tocheck):
+    nodupes = []
+    dupes = []
+    for check in tocheck:
+        if check not in nodupes:
+            nodupes.append(check)
+        else:
+            dupes.append(check)
+    check = nodupes
+    return nodupes, dupes
+
 
 def generate_modlist(instance):
     def remove_duplicate_ids(mods):
@@ -77,7 +99,7 @@ def generate_modlist(instance):
 def link_modlist(mods):
 
     log().info("Clearing active mod folder")
-    empty_folder("active/mods")
+    unlink_folder("active/mods")
     source_mods  = fetch.source_mods_list()
     
     for mod in mods:
@@ -123,7 +145,7 @@ def downloadMods(mods,regen_mods=False):
 
     set_download_time(mods)
 
-    empty_folder("active/fresh/")
+    unlink_folder("active/fresh/")
     for mod in mods:
         os.symlink(os.path.abspath(f"source_mods/{mod}"),f"active/fresh/{mod}")
         # Move fresh mods to a folder to perform operations on

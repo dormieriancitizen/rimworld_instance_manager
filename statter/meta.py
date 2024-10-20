@@ -34,19 +34,7 @@ async def load_mod_metadata():
     with open("data/modd.json","r") as f:
         return json.load(f)  
 
-def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,include_ludeon=False,always_prompt=False):
-    if fetch is None:
-        if os.path.exists("data/modd_dirty") or always_prompt:
-            fetch = click.confirm("Generate new metadata?")
-        else:
-            log().info("Data is not marked dirty, sending cached")
-            fetch = False
-    
-    if fetch:
-        modd = asyncio.run(gen_mod_metadata(steam_fetch=click.confirm("Fetch new mod info?")))
-    else:
-        modd = asyncio.run(load_mod_metadata())
-  
+def parse_modd(modd,sort_by=None, index_by = None, prune_by = None,include_ludeon=False):
     if not include_ludeon:
         modd = {e: modd[e] for e in modd if e not in dlcs}
     if prune_by:
@@ -57,7 +45,23 @@ def mod_metadata(sort_by = None, index_by = None, prune_by = None, fetch=None,in
         modd = dict(sorted(modd.items(), key=lambda item: float(item[1][sort_by])))
     if index_by:
         modd = {modd[e][index_by]:modd[e] for e in modd}
+    
     return modd
+
+def mod_metadata(always_prompt=False,regen=None,**kwargs):
+    if regen is None:
+        if os.path.exists("data/modd_dirty") or always_prompt:
+            regen = click.confirm("Generate new metadata?")
+        else:
+            log().info("Data is not marked dirty, sending cached")
+            regen = False
+    if regen:
+        modd = asyncio.run(gen_mod_metadata(steam_fetch=click.confirm("Fetch new mod info?")))
+    else:
+        modd = asyncio.run(load_mod_metadata())
+  
+    print(kwargs)
+    return parse_modd(modd,kwargs)
 
 async def load_abouts(mods):
     abouts = {}
@@ -97,7 +101,7 @@ async def gen_mod_metadata(steam_fetch=False,mods=None):
     start_time = time.time()
 
     abouts_task = asyncio.create_task(load_abouts(mods))
-    steam_task = asyncio.create_task(fetch.fetch_steam_info(fetch=steam_fetch,mods=steam_mods))
+    steam_task = asyncio.create_task(fetch.steam_info(fetch=steam_fetch,mods=steam_mods))
 
     abouts = await abouts_task
     time_to_generate = time.time()
