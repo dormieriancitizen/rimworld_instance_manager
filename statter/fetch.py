@@ -74,6 +74,10 @@ def get_modlist(instance,fetch=None):
         mods = sheet_manager.get_modlist_info(instance)
         with open(f"instances/{instance}/modlist.csv","w") as instance_csv:
             instance_csv.write(mods)
+        reader = csv.reader(mods.splitlines(),delimiter=",")
+        for row in reader:
+            mods=row
+            break
     else:
         with open(f"instances/{instance}/modlist.csv","r") as instance_csv:
             reader = csv.reader(instance_csv)

@@ -29,22 +29,18 @@ def duplicate_check(tocheck):
     check = nodupes
     return nodupes, dupes
 
-
-def generate_modlist(instance,mods):
+def generate_modlist(mods):
     def remove_duplicate_ids(mods):
         mods, dupes = duplicate_check(mods)
         if dupes:
             log().warn("\n".join([f"Duplicate: {x}. Removed." for x in dupes]))
         return mods
+    def check_deps(mods,modd):
+        modd_by_pid = meta.parse_modd(modd,index_by="pid",prune_by=mods)
+        all_modd_by_pid = meta.parse_modd(modd,index_by="pid")
 
-    def check_deps():
-        nonlocal modd, mods
-
-        modd_by_pid = {modd[d]["pid"]: modd[d] for d in modd if d in mods}
-        all_modd_by_pid = {modd[d]["pid"]: modd[d] for d in modd}
-
-        for d in pruned_modd:
-            for dep in modd[d]["deps"]:
+        for d in modd_by_pid:
+            for dep in modd_by_pid[d]["deps"]:
                 if dep.startswith("ludeon."):
                     continue
                 if not dep in modd_by_pid:
@@ -55,36 +51,37 @@ def generate_modlist(instance,mods):
                     else:
                         log().error(f"Missing unknown dependency {dep}")
         return mods
-
-    # Validate modlist
-    source_mods  = fetch.source_mods_list()
+    def validate_mods_present(mods):
+        source_mods  = fetch.source_mods_list()
+        missing_modlist = []
+        for mod in mods:
+            if mod not in source_mods:
+                if fetch.is_steam_mod(mod):
+                    missing_modlist.append(mod)
+                else:
+                    missing_modlist.append(mod)
+                    log().warn(f"Missing mod {mod}, but is not a steam mod")
+        return missing_modlist    
 
     log().log(f"Parsing modlist for {len(mods)} mods")
 
+    mods = remove_duplicate_ids(mods)
+
     modd = meta.mod_metadata()
+    missing_modlist = validate_mods_present(mods)
 
-    missing_mod_list = []
-    for mod in mods:
-        if mod not in source_mods:
-            if mod.isnumeric():
-                missing_mod_list.append(mod)
-            else:
-                log().warn(f"Missing mod {mod}, but is not a steam mod")
-
-    if missing_mod_list:
+    if missing_modlist:
         log().error("Missing mods detected. Add then using rimman add_mods")
-        log().error(missing_mod_list)
+        log().error(missing_modlist)
         return
 
-    dupes = []
-    pruned_modd = {d: modd[d] for d in modd if d in mods}
-    pids, dupes = duplicate_check([pruned_modd[d]["pid"] for d in pruned_modd])
+    pids, dupes = duplicate_check(meta.parse_modd(modd,prune_by=mods,index_by="pid"))
 
     if dupes:
         log().error("\n".join([f"Duplicate PID! {x}" for x in dupes])+"\nPlease fix!")
-        return    
+        raise Exception("Duplicate PIDS")    
 
-    check_deps()
+    check_deps(mods,modd)
 
     log().log(f"Modlist Length: {len(mods)}")
     link_modlist(mods)
@@ -96,7 +93,6 @@ def generate_modlist(instance,mods):
         f.write(sorter.generate_modconfig_file(order))
 
 def link_modlist(mods):
-
     log().info("Clearing active mod folder")
     unlink_folder("active/mods")
     source_mods  = fetch.source_mods_list()

@@ -42,13 +42,16 @@ def parse_modd(modd,sort_by=None, index_by = None, prune_by = None,include_ludeo
             prune_by.extend(dlcs)
         modd = {e: modd[e] for e in modd if e in prune_by}
     if sort_by:
-        modd = dict(sorted(modd.items(), key=lambda item: float(item[1][sort_by])))
+        modd = dict(sorted(
+            modd.items(),
+            key=lambda item: item[1][sort_by]))
+
     if index_by:
         modd = {modd[e][index_by]:modd[e] for e in modd}
     
     return modd
 
-def mod_metadata(always_prompt=False,regen=None,**kwargs):
+def mod_metadata(always_prompt=False,regen=None,sort_by=None, index_by = None, prune_by = None,include_ludeon=False):
     if regen is None:
         if os.path.exists("data/modd_dirty") or always_prompt:
             regen = click.confirm("Generate new metadata?")
@@ -60,7 +63,7 @@ def mod_metadata(always_prompt=False,regen=None,**kwargs):
     else:
         modd = asyncio.run(load_mod_metadata())
   
-    return parse_modd(modd,kwargs)
+    return parse_modd(modd,sort_by=sort_by, index_by=index_by, prune_by=prune_by,include_ludeon=include_ludeon)
 
 async def load_abouts(mods):
     abouts = {}
@@ -129,7 +132,7 @@ async def gen_mod_metadata(steam_fetch=False,mods=None):
     return modd
 
 def instance_metadata(modlist):
-    modd = mod_metadata(prune_by=modlist,index_by="pid",fetch=False,include_ludeon=True)
+    modd = mod_metadata(prune_by=modlist,index_by="pid",regen=False,include_ludeon=True)
 
     comun_rules = fetch.fetch_rimsort_community_rules()["rules"]
     comun_rules = {x: comun_rules[x] for x in comun_rules if x in modd}

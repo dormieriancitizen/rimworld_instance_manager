@@ -11,9 +11,16 @@ def get_spreadsheet():
     return gc.open_by_key(os.getenv("SPREADSHEET"))
 
 def get_modlist_info(instance):
+    start_time = time.time()
+
     sh = get_spreadsheet()
     instance_sheet = sh.worksheet(instance)
-    return instance_sheet.acell("H2").value
+
+    modlist = instance_sheet.acell("H2").value
+
+    log().info(f"Got list from sheet in {time.time()-start_time}s")
+
+    return modlist
 
 def get_instances():
     sh = get_spreadsheet()
