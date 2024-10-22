@@ -59,7 +59,7 @@ def cli_manage_instance(instance):
 
     to_disable = [mod for mod in instance_list if mod not in response]
 
-@instance.group()
+@instance.group("rentry")
 def reentry_manager():
     pass
 

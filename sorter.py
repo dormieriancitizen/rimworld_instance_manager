@@ -1,7 +1,10 @@
 from collections import Counter
+import time
 
 from logger import Logger as log
 from statter import meta
+
+late_loaders = ["krkr.rocketman"]
 
 def find_circular_dependencies(nodes):
     def dfs(node, visited, rec_stack, path, cycles):
@@ -87,14 +90,12 @@ def topological_sort(nodes,modd):
     # Reverse the list since we have it in reverse order
     final_order.reverse()
 
-    if "krkr.rocketman" in final_order:
-        # RocketMan needs to go at the end of a sort order
-        final_order.append(final_order.pop(final_order.index('krkr.rocketman')))
-
     return final_order
 
 def sorter(modlist):
     modd = meta.instance_metadata(modlist)
+
+    start_time = time.time()
 
     # Convert all loadAfter into loadBefore
     for d in modd:
@@ -125,9 +126,16 @@ def sorter(modlist):
                             if not d.startswith("ludeon.rimworld"):
                                 modd[d]["orderAfter"].extend(dlc_names)
 
+    load_normal_mods = [d for d in modd if d not in late_loaders]
+    for d in late_loaders:
+        if d in modd:
+            modd[d]["orderAfter"].extend(load_normal_mods)
+
     deplist = {x: modd[x]["orderAfter"] for x in modd}
 
     order = topological_sort(deplist,modd)
+
+    log().info(f"Sorted in {time.time()-start_time}s")
 
     return order
 
