@@ -1,7 +1,7 @@
 from logger import Logger as log
 from statter import sheet_manager
 
-import click, requests, json, time, subprocess, os, asyncio, functools, csv, xmltodict
+import click, requests, json, time, os, asyncio, functools, csv, xmltodict
 
 async def steam_info(fetch=None,mods=None):
     if fetch is None:

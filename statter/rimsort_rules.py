@@ -3,7 +3,11 @@ import subprocess, json
 def fetch_rimsort_community_rules():
     subprocess.Popen("git -C data/rs_rules pull",shell=True,stdout=subprocess.DEVNULL).wait()
     with open("data/rs_rules/communityRules.json", "r") as f:
-        return json.load(f)
+        rules = json.load(f)
+    with open("data/personalRules.json", "r") as f:
+        rules["rules"].update(json.load(f))
+    
+    return rules
     
 def rimsort_pid_names():
     community_rules = fetch_rimsort_community_rules()

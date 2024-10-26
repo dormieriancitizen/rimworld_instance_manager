@@ -4,7 +4,7 @@ import time
 from logger import Logger as log
 from statter import meta
 
-late_loaders = ["krkr.rocketman"]
+late_loaders = ["krkr.rocketman","taranchuk.performanceoptimizer"]
 
 def find_circular_dependencies(nodes):
     def dfs(node, visited, rec_stack, path, cycles):
