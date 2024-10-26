@@ -43,11 +43,6 @@ async def steam_info(fetch=None,mods=None):
 
     return steamd
 
-def fetch_rimsort_community_rules():
-    subprocess.Popen("git -C data/rs_rules pull",shell=True,stdout=subprocess.DEVNULL).wait()
-    with open("data/rs_rules/communityRules.json", "r") as f:
-        return json.load(f)
-
 def is_steam_mod(mod):
     if not mod.isnumeric():
         return False

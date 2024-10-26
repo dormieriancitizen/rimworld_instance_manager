@@ -1,10 +1,14 @@
-import regex, requests, json
+import regex, requests, json, time, click
 import numpy as np
 from urllib.parse import urlparse, unquote
 from pathlib import Path
 from os import getenv
+from pathlib import Path
 
 from logger import Logger as log
+
+import interface, sorter
+from statter import meta, fetch, rimsort_rules, sheet_manager
 
 def import_rentry(rentry_url):
     r = unquote(requests.get(rentry_url).text)
@@ -187,3 +191,86 @@ class RentryUpload:
         return json.loads(
             client.post(API_NEW_ENDPOINT, data=payload, headers=_HEADERS).text
         )
+
+@click.group("rentry")
+def reentry_manager():
+    pass
+
+    # url = click.prompt("Rentry Url?")
+    # modlist = rentry.import_rentry(url)
+    # slow_mods = sheet_manager.get_slow_mods()
+
+    # log().info([x for x in modlist if x in slow_mods])
+
+@reentry_manager.command("generate")
+def rentry_generate():
+    mods = fetch.get_modlist(interface.prompt_instance_name(),fetch=False)
+    modd = meta.mod_metadata(prune_by=mods,index_by="pid",include_ludeon=True)
+    
+    i = 0
+    for mod in sorter.sorter(mods):
+        i+=1
+        modd[mod]["sort"] = i
+    start_time = time.time()
+    ren = compile_rentry(modd)
+    log().info(f"Generated rentry for {i} mods in {time.time()-start_time}")
+
+    start_time = time.time()
+    # with open("temp","w") as f:
+    #     f.write(ren)
+    upload(ren)
+    log().info(f"Uploaded in {time.time()-start_time}")
+
+
+@reentry_manager.command("generate_from_xml")
+def rentry_generate():
+    path = Path("/home/dormierian/Downloads/mods.xml")
+
+    modlist = fetch.get_mods_from_modsconfig(path)
+
+    modd = meta.parse_modd(meta.mod_metadata(include_ludeon=True),index_by="pid")
+
+    missing_mods = [mod for mod in modlist if not mod in modd]
+
+    rimsort_pid_names = rimsort_rules.rimsort_pid_names()
+
+    if missing_mods:
+        for mod in missing_mods:
+            modd[mod] = {
+                "pid": mod,
+                "xml_only": False,
+                "source": "LOCAL",
+                "name": rimsort_pid_names[mod] if mod in rimsort_pid_names else mod,
+                "download_link": "",
+            }
+
+    i = 0
+    for mod in modlist:
+        i+=1
+        modd[mod]["sort"] = i
+
+    modd = {pid: modd[pid] for pid in modd if pid in modlist} # cant use prune-by bc its pids
+
+    start_time = time.time()
+    ren = compile_rentry(modd)
+    log().info(f"Generated rentry for {i} mods in {time.time()-start_time}")
+
+    start_time = time.time()
+    # with open("temp","w") as f:
+    #     f.write(ren)
+    upload(ren)
+    log().info(f"Uploaded in {time.time()-start_time}")
+
+@reentry_manager.command("missing")
+def rentry_missing():
+    ren = import_rentry(click.prompt("Rentry Url?"))
+
+    modd = meta.mod_metadata(
+        index_by="pid",
+        include_ludeon=True,
+        prune_by=sheet_manager.get_modlist_info(interface.prompt_instance_name())
+    )
+
+    missing_mods = [modd[x]["name"] for x in ren if x not in modd]
+    log().log("\n".join(missing_mods))
+

@@ -1,4 +1,4 @@
-from statter import fetch
+from statter import fetch, rimsort_rules
 import json, click, time, os, asyncio
 
 from logger import Logger as log
@@ -110,7 +110,7 @@ async def gen_mod_metadata(steam_fetch=False,mods=None):
 def instance_metadata(modlist):
     modd = mod_metadata(prune_by=modlist,index_by="pid",regen=False,include_ludeon=True)
 
-    comun_rules = fetch.fetch_rimsort_community_rules()["rules"]
+    comun_rules = rimsort_rules.fetch_rimsort_community_rules()["rules"]
     comun_rules = {x: comun_rules[x] for x in comun_rules if x in modd}
 
     for mod in comun_rules:
