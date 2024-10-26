@@ -1,34 +1,10 @@
 from statter import fetch
-import json, click, time, xmltodict, os, asyncio
+import json, click, time, os, asyncio
 
 from logger import Logger as log
 from statter.individual_mod import individual_mod
 
 dlcs = ("Core","Biotech","Ideology","Royalty","Anomaly")
-
-async def mod_about(mod, path=None):
-    if path == None:
-        if os.path.exists(f"source_mods/{mod}/About/About.xml"):
-            path = f"source_mods/{mod}/About/About.xml"
-        elif os.path.exists(f"source_mods/{mod}/About/about.xml"):
-            path = f"source_mods/{mod}/About/about.xml"
-        else:
-            log().error(f"Could not find path for {mod}, was passed {path}")
-    else:
-        if not os.path.exists(path):
-            raise Exception(f"Passed nonexistent path {path}")
-    
-    try:
-        with open(path,"rb") as aboutxml:
-            try:
-                return xmltodict.parse(aboutxml, dict_constructor=dict)
-            except xmltodict.xml.parsers.expat.ExpatError:
-                log().error(f"Expat error in "+path)
-                return {}
-    
-    except FileNotFoundError:
-        log().error(f"Unknown mod: "+mod)
-        raise Exception(f"Passed nonexistent path {path}")
 
 async def load_mod_metadata():
     with open("data/modd.json","r") as f:
@@ -70,9 +46,9 @@ async def load_abouts(mods):
 
     time_to_about = time.time()
 
-    tasks = [mod_about(mod) for mod in mods if mod not in dlcs]
+    tasks = [fetch.mod_about(mod) for mod in mods if mod not in dlcs]
 
-    tasks.extend([mod_about(dlc,path=f"/home/dormierian/Games/rimworld/Data/{dlc}/About/About.xml") for dlc in dlcs])
+    tasks.extend([fetch.mod_about(dlc,path=f"/home/dormierian/Games/rimworld/Data/{dlc}/About/About.xml") for dlc in dlcs])
 
     results = await asyncio.gather(*tasks)
 

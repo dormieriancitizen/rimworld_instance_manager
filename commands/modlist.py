@@ -1,6 +1,8 @@
 import click, time
 import interface, sorter, rentry
 
+from pathlib import Path
+
 from InquirerPy.base.control import Choice
 from InquirerPy import inquirer
 
@@ -78,6 +80,65 @@ def rentry_generate():
     for mod in sorter.sorter(mods):
         i+=1
         modd[mod]["sort"] = i
+    start_time = time.time()
+    ren = rentry.compile_rentry(modd)
+    log().info(f"Generated rentry for {i} mods in {time.time()-start_time}")
+
+    start_time = time.time()
+    # with open("temp","w") as f:
+    #     f.write(ren)
+    rentry.upload(ren)
+    log().info(f"Uploaded in {time.time()-start_time}")
+
+
+@reentry_manager.command("generate_from_xml")
+def rentry_generate():
+    path = Path("/home/dormierian/Downloads/mods.xml")
+
+    modlist = fetch.get_mods_from_modsconfig(path)
+
+    modd = meta.parse_modd(meta.mod_metadata(include_ludeon=True),index_by="pid")
+
+    missing_mods = [mod for mod in modlist if not mod in modd]
+
+    community_rules = fetch.fetch_rimsort_community_rules()["rules"]
+
+
+    rimsort_pid_names = {}
+    for pid in community_rules:
+        if "loadBefore" in community_rules[pid]:
+            rimsort_pid_names.update(community_rules[pid]["loadBefore"])
+        if "loadAfter" in community_rules[pid]:
+            rimsort_pid_names.update(community_rules[pid]["loadAfter"])    
+
+    pids_by_name = {}
+    for pid in rimsort_pid_names:
+        if "name" in rimsort_pid_names[pid]:
+            name = rimsort_pid_names[pid]["name"]
+
+            if isinstance(name,list):
+                name = name[0]
+
+            if name:
+                pids_by_name[pid] = name
+
+    if missing_mods:
+        for mod in missing_mods:
+            modd[mod] = {
+                "pid": mod,
+                "xml_only": False,
+                "source": "LOCAL",
+                "name": pids_by_name[mod] if mod in pids_by_name else mod,
+                "download_link": "",
+            }
+
+    i = 0
+    for mod in modlist:
+        i+=1
+        modd[mod]["sort"] = i
+
+    modd = {pid: modd[pid] for pid in modd if pid in modlist}
+
     start_time = time.time()
     ren = rentry.compile_rentry(modd)
     log().info(f"Generated rentry for {i} mods in {time.time()-start_time}")

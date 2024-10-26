@@ -1,7 +1,7 @@
 from logger import Logger as log
 from statter import sheet_manager
 
-import click, requests, json, time, subprocess, os, asyncio, functools, csv
+import click, requests, json, time, subprocess, os, asyncio, functools, csv, xmltodict
 
 async def steam_info(fetch=None,mods=None):
     if fetch is None:
@@ -86,3 +86,35 @@ def get_modlist(instance,fetch=None):
                 break
     
     return mods
+
+
+async def mod_about(mod, path=None):
+    if path == None:
+        if os.path.exists(f"source_mods/{mod}/About/About.xml"):
+            path = f"source_mods/{mod}/About/About.xml"
+        elif os.path.exists(f"source_mods/{mod}/About/about.xml"):
+            path = f"source_mods/{mod}/About/about.xml"
+        else:
+            log().error(f"Could not find path for {mod}, was passed {path}")
+    else:
+        if not os.path.exists(path):
+            raise Exception(f"Passed nonexistent path {path}")
+    
+    try:
+        with open(path,"rb") as aboutxml:
+            try:
+                return xmltodict.parse(aboutxml, dict_constructor=dict)
+            except xmltodict.xml.parsers.expat.ExpatError:
+                log().error(f"Expat error in "+path)
+                return {}
+    
+    except FileNotFoundError:
+        log().error(f"Unknown mod: "+mod)
+        raise Exception(f"Passed nonexistent path {path}")
+
+def get_mods_from_modsconfig(path):
+    with open(path,"rb") as modsconfigs_file:
+        modsconfigs = xmltodict.parse(modsconfigs_file,dict_constructor=dict)
+
+    return modsconfigs["ModsConfigData"]["activeMods"]["li"]
+    

@@ -1,4 +1,4 @@
-#!/home/dormierian/Games/rimman/bin/python
+#!/home/dormierian/Games/rimman/venv/bin/python
 
 if __name__ != "__main__":
     raise 
