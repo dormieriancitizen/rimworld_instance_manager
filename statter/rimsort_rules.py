@@ -10,7 +10,7 @@ def fetch_rimsort_community_rules():
     return rules
     
 def rimsort_pid_names():
-    community_rules = fetch_rimsort_community_rules()
+    community_rules = fetch_rimsort_community_rules()["rules"]
 
     rimsort_pid_names = {}
     for pid in community_rules:

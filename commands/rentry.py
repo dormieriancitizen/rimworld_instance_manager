@@ -88,7 +88,7 @@ def compile_rentry(modd):
         if modd[mod]["source"] == "LOCAL":
             line += " "+package_id_string   
 
-        line += f"| {"XML" if modd[mod]["xml_only"] else "C#"}"
+        line += f"| {str(max([float(ver) for ver in modd[mod]["supportedVersions"]]))}, {"XML" if modd[mod]["xml_only"] else "C#"}"
         report += line
 
     return report
@@ -223,8 +223,9 @@ def rentry_generate():
 
 
 @reentry_manager.command("generate_from_xml")
-def rentry_generate():
-    path = Path("/home/dormierian/Downloads/mods.xml")
+@click.argument("path")
+def rentry_generate_from_xml(path):
+    path = Path(path)
 
     modlist = fetch.get_mods_from_modsconfig(path)
 

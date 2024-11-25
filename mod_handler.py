@@ -46,7 +46,7 @@ def generate_modlist(mods):
                 if not dep in modd_by_pid:
                     if dep in all_modd_by_pid:
                         if all_modd_by_pid[dep]["id"] not in mods:
-                            log().warn(f"{modd[d]["graphical_name"]} depends on {dep}, but is a known PID. Adding to modlist")
+                            log().warn(f"{modd_by_pid[d]['graphical_name']} depends on {dep}, but is a known PID. Adding to modlist")
                             mods.append(all_modd_by_pid[dep]["id"])
                     else:
                         log().error(f"Missing unknown dependency {dep}")
