@@ -54,25 +54,32 @@ def generate_modlist(mods):
     def validate_mods_present(mods):
         source_mods  = fetch.source_mods_list()
         missing_modlist = []
+        steam_missing_modlist = []
         for mod in mods:
             if mod not in source_mods:
                 if fetch.is_steam_mod(mod):
                     missing_modlist.append(mod)
+                    steam_missing_modlist.append(mod)
                 else:
                     missing_modlist.append(mod)
                     log().warn(f"Missing mod {mod}, but is not a steam mod")
-        return missing_modlist    
+        return missing_modlist, steam_missing_modlist
 
     log().log(f"Parsing modlist for {len(mods)} mods")
 
     mods = remove_duplicate_ids(mods)
 
     modd = meta.mod_metadata()
-    missing_modlist = validate_mods_present(mods)
+    missing_modlist, steam_missing_modlist = validate_mods_present(mods)
 
     if missing_modlist:
         log().error("Missing mods detected. Add then using rimman add_mods")
-        log().error(missing_modlist)
+        log().error(",".join(missing_modlist))
+
+        if steam_missing_modlist:
+            if click.confirm("Fetch missing steam mods?"):
+                downloadMods({mod: {"source": "STEAM"} for mod in steam_missing_modlist})
+
         return
 
     pids, dupes = duplicate_check(meta.parse_modd(modd,prune_by=mods,index_by="pid"))

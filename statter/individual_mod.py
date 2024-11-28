@@ -73,9 +73,10 @@ async def individual_mod(mod,steam_mod,about):
         if time_downloaded_file.exists():
             d["time_downloaded"] = time_downloaded_file.read_text()
         else:
-            log().warn(f"{d['source']} mod {d["name"]} has no current download time. Setting to 0{" (will be downloaded again on next update)." if d["source"] == "STEAM" else "."}")
-            time_downloaded_file.write_text("0")
-            d["time_downloaded"] = "0"
+            log().warn(f"{d['source']} mod {d["name"]} has no current download time. Setting to now (may not be updated if it needs to be)")
+            now = str(time.time() * 1000)
+            time_downloaded_file.write_text(now)
+            d["time_downloaded"] = now
     else:
         if VERSION not in d["supportedVersions"]:
             d["supportedVersions"].append(VERSION)
